@@ -1,43 +1,92 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "arena.h"
 
-void arena_init(struct arena *arena) {
-	arena->head = NULL;
-	arena->tail = &arena->head;
+/* IMPL-DEF: weird pointer manipulation */
+
+struct arena *arena_new() {
+	struct arena *ret;
+
+	ret = xmalloc(sizeof(*ret));
+	ret->head = NULL;
+
+	return ret;
 }
 
 void *arena_malloc(struct arena *arena, size_t size) {
-	struct _arena_region *region;
+	struct arena_region *region;
 	region = malloc(size + sizeof(*region));
 	if (region == NULL) {
 		fputs("arena_malloc() failed\n", stderr);
 		exit(EXIT_FAILURE);
 	}
-	*arena->tail = region;
-	arena->tail = &region->next;
-	region->next = NULL;
+	region->next = arena->head;
+	region->prev = NULL;
+	if (arena->head != NULL) {
+		arena->head->prev = region;
+	}
+	arena->head = region;
 	return (void *) ((char *) region + sizeof(*region));
 }
 
 void *arena_realloc(void *ptr, size_t size) {
-	struct _arena_region *region;
-	region = (struct _arena_region *) ((char *) ptr - sizeof(*region));
+	struct arena_region *region;
+	region = (struct arena_region *) ((char *) ptr - sizeof(*region));
 	region = realloc(region, size + sizeof(*region));
 	if (region == NULL) {
 		fputs("arena_realloc() failed\n", stderr);
 		exit(EXIT_FAILURE);
 	}
-	return region;
+	if (region->prev != NULL) {
+		region->prev->next = region;
+	}
+	if (region->next != NULL) {
+		region->next->prev = region;
+	}
+	return (void *) ((char *) region + sizeof(*region));
+}
+
+void arena_freeptr(void *ptr) {
+	struct arena_region *region;
+	region = (struct arena_region *) ((char *) ptr - sizeof(*region));
+	if (region->prev != NULL) {
+		region->prev->next = region->next;
+	}
+	if (region->next != NULL) {
+		region->next->prev = region->prev;
+	}
+	free(region);
 }
 
 void arena_free(struct arena *arena) {
-	struct _arena_region *region, *next;
+	struct arena_region *region, *next;
 	region = arena->head;
 	while (region != NULL) {
 		next = region->next;
 		free(region);
 		region = next;
 	}
+	free(arena);
+}
+
+void *xmalloc(size_t size) {
+	void *ret;
+	ret = malloc(size);
+	if (ret == NULL) {
+		fputs("xmalloc() failed\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+	return ret;
+}
+
+void *xrealloc(void *ptr, size_t size) {
+	void *ret;
+	ret = realloc(ptr, size);
+	if (ret == NULL) {
+		fputs("xrealloc() failed\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+	return ret;
 }

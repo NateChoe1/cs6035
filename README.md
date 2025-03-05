@@ -6,3 +6,10 @@ Computer Language Engineering.
 
 Right now I'm just trying to wrap my head around LALR parsing, but eventually
 this may turn into something much bigger.
+
+Some of this code does depend on implementation defined behavior, but most of
+the things it depends on are pretty universal. Files which contain
+implementation defined behavior are tagged with the `IMPL_DEF` tag. They can be
+found with this command:
+
+    grep -r IMPL_DEF
