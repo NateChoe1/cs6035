@@ -13,3 +13,11 @@ implementation defined behavior are tagged with the `IMPL_DEF` tag. They can be
 found with this command:
 
     grep -r IMPL_DEF
+
+## Building:
+
+This project uses [https://github.com/tsoding/nob.h](nob.h) to build itself. To
+compile this program, just run these commands:
+
+    cc nob.c -o nob
+    ./nob
