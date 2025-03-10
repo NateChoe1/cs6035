@@ -29,6 +29,10 @@ struct regex *regex_compile(struct arena *arena, char *pattern) {
 
 	ta = arena_new();
 	nfa = nfa_compile(ta, pattern);
+	if (nfa == NULL) {
+		ret = NULL;
+		goto end;
+	}
 	initial_state = state_new(arena);
 	state_append(initial_state, nfa->start_node);
 
@@ -39,8 +43,8 @@ struct regex *regex_compile(struct arena *arena, char *pattern) {
 			state_accepted,
 			nfa);
 
+end:
 	arena_free(ta);
-
 	return (struct regex *) ret;
 }
 

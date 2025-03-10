@@ -13,6 +13,10 @@ int main(int argc, char **argv) {
 
 	arena = arena_new();
 	regex = regex_compile(arena, argv[1]);
+	if (regex == NULL) {
+		fprintf(stderr, "regex %s failed to compile\n", argv[1]);
+		return 1;
+	}
 	printf("%ld\n", regex_nongreedy_match(regex, argv[2]));
 	printf("%ld\n", regex_greedy_match(regex, argv[2]));
 	arena_free(arena);
