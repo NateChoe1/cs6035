@@ -172,14 +172,24 @@ static struct state *transition(struct arena *arena,
 	return ret;
 }
 
-/* TODO: smarter followups function */
 static char *followups(struct state *state, void *arg) {
-	static char ret[NFA_MAX_TRANSITIONS] = {0};
-	(void) state;
-	(void) arg;
+	static char ret[NFA_MAX_TRANSITIONS];
+	struct nfa *nfa;
+	struct state_item *iter;
+	long node;
+	int i;
 
-	if (ret[0] == '\0') {
-		memset(ret, 1, sizeof(ret));
+	memset(ret, 0, sizeof(ret));
+	nfa = (struct nfa *) arg;
+
+	iter = state->head;
+	while (iter != NULL) {
+		node = iter->value;
+		for (i = 0; i < NFA_MAX_TRANSITIONS; ++i) {
+			ret[i] |= nfa->nodes[node].transitions[i] != NULL;
+		}
+
+		iter = iter->next;
 	}
 	return ret;
 }
