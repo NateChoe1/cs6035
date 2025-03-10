@@ -6,6 +6,8 @@
 #include <string.h>
 #include <limits.h>
 
+#define NUM_CHARS ((int) UCHAR_MAX + 1)
+
 /* converts state to closure(state) */
 static void enclose(struct state *state, void *arg);
 static void enclose_item(struct nfa *nfa,
@@ -30,7 +32,7 @@ struct regex *regex_compile(struct arena *arena, char *pattern) {
 	initial_state = state_new(arena);
 	state_append(initial_state, nfa->start_node);
 
-	ret = dfa_new(arena, NFA_MAX_TRANSITIONS, initial_state,
+	ret = dfa_new(arena, NUM_CHARS, initial_state,
 			enclose,
 			transition,
 			followups,
@@ -54,10 +56,10 @@ long regex_nongreedy_match(struct regex *regex, char *str) {
 
 	state = 0;
 	for (i = 0; str[i]; ++i) {
+		state = dfa->nodes[state].links[(unsigned char) str[i]];
 		if (state < 0 || state >= dfa->num_nodes) {
 			return -1;
 		}
-		state = dfa->nodes[state].links[(unsigned char) str[i]];
 		if (dfa->nodes[state].r) {
 			return i+1;
 		}
@@ -75,10 +77,10 @@ long regex_greedy_match(struct regex *regex, char *str) {
 
 	state = 0;
 	for (i = 0; str[i]; ++i) {
+		state = dfa->nodes[state].links[(unsigned char) str[i]];
 		if (state < 0 || state >= dfa->num_nodes) {
 			break;
 		}
-		state = dfa->nodes[state].links[(unsigned char) str[i]];
 		if (dfa->nodes[state].r) {
 			r = i+1;
 		}
@@ -173,7 +175,7 @@ static struct state *transition(struct arena *arena,
 }
 
 static char *followups(struct state *state, void *arg) {
-	static char ret[NFA_MAX_TRANSITIONS];
+	static char ret[NUM_CHARS];
 	struct nfa *nfa;
 	struct state_item *iter;
 	long node;
@@ -185,7 +187,7 @@ static char *followups(struct state *state, void *arg) {
 	iter = state->head;
 	while (iter != NULL) {
 		node = iter->value;
-		for (i = 0; i < NFA_MAX_TRANSITIONS; ++i) {
+		for (i = 0; i < NUM_CHARS; ++i) {
 			ret[i] |= nfa->nodes[node].transitions[i] != NULL;
 		}
 
