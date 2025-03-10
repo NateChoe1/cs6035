@@ -7,12 +7,11 @@
 struct hashset;
 
 struct hashset *hashset_new(struct arena *arena);
-void hashset_put(struct hashset *hashset, void *ptr);
-int hashset_contains(struct hashset *hashset, void *ptr);
-void hashset_remove(struct hashset *hashset, void *ptr);
-void hashset_free(struct hashset *hashset);
+void hashset_put(struct hashset *hashset, long value);
+int hashset_contains(struct hashset *hashset, long value);
+void hashset_remove(struct hashset *hashset, long value);
 void hashset_iter(struct hashset *hashset, void *closure,
-		void (*callback)(void *closure, void *item));
+		void (*callback)(void *closure, long item));
 size_t hashset_size(struct hashset *hashset);
 
 #endif

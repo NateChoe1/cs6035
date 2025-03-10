@@ -8,7 +8,9 @@
 
 /* converts state to closure(state) */
 static void enclose(struct state *state, void *arg);
-static void enclose_callback(void *closure_raw, void *item);
+static void enclose_item(struct nfa *nfa,
+		struct state *state, struct state_ordered *new,
+		struct hashset *added, long start);
 
 static struct state *transition(struct arena *arena,
 		struct state *state, int c, void *arg);
@@ -20,20 +22,20 @@ static int state_accepted(struct state *state, void *arg);
 struct regex *regex_compile(struct arena *arena, char *pattern) {
 	struct dfa *ret;
 	struct arena *ta;
-	struct nfa_node *nfa;
+	struct nfa *nfa;
 	struct state *initial_state;
 
 	ta = arena_new();
 	nfa = nfa_compile(ta, pattern);
 	initial_state = state_new(arena);
-	state_append(initial_state, nfa);
+	state_append(initial_state, nfa->start_node);
 
 	ret = dfa_new(arena, NFA_MAX_TRANSITIONS, initial_state,
 			enclose,
 			transition,
 			followups,
 			state_accepted,
-			NULL);
+			nfa);
 
 	arena_free(ta);
 
@@ -85,39 +87,42 @@ long regex_greedy_match(struct regex *regex, char *str) {
 }
 
 struct enclose_closure {
+	struct nfa *nfa;
 	struct hashset *added;
 	struct state *state;
 	struct hashset *new;
 };
 
 static void enclose(struct state *state, void *arg) {
-	struct hashset *added, *unchecked, *new;
+	struct hashset *added;
+	struct state_ordered *unchecked, *new;
 	struct state_item *iter;
 	struct arena *pm_arena, *tmp_arena, *tmp2_arena;
-	struct enclose_closure closure;
+	struct nfa *nfa;
+	size_t i;
 
-	(void) arg;
+	nfa = (struct nfa *) arg;
 
 	pm_arena = arena_new();
 	tmp_arena = arena_new();
 
 	added = hashset_new(pm_arena);
-	unchecked = hashset_new(tmp_arena);
+	unchecked = state_ordered_new(tmp_arena);
 	iter = state->head;
 	while (iter != NULL) {
 		hashset_put(added, iter->value);
-		hashset_put(unchecked, iter->value);
+		state_ordered_put(unchecked, iter->value);
 		iter = iter->next;
 	}
 
-	closure.added = added;
-	closure.state = state;
-	while (hashset_size(unchecked) > 0) {
+	while (unchecked->size > 0) {
 		tmp2_arena = arena_new();
-		new = hashset_new(tmp2_arena);
+		new = state_ordered_new(tmp2_arena);
 
-		closure.new = new;
-		hashset_iter(unchecked, &closure, enclose_callback);
+		for (i = 0; i < unchecked->size; ++i) {
+			enclose_item(nfa, state, new,
+					added, unchecked->items[i]);
+		}
 
 		arena_free(tmp_arena);
 		unchecked = new;
@@ -128,18 +133,16 @@ static void enclose(struct state *state, void *arg) {
 	arena_free(tmp_arena);
 }
 
-static void enclose_callback(void *closure_raw, void *item_raw) {
-	struct enclose_closure *closure;
-	struct nfa_node *item;
+static void enclose_item(struct nfa *nfa,
+		struct state *state, struct state_ordered *new,
+		struct hashset *added, long start) {
 	struct nfa_list *iter;
-	closure = closure_raw;
-	item = item_raw;
-	iter = item->transitions[NFA_EMPTY_IDX];
+	iter = nfa->nodes[start].transitions[NFA_EMPTY_IDX];
 	while (iter != NULL) {
-		if (!hashset_contains(closure->added, iter->node)) {
-			hashset_put(closure->added, iter->node);
-			state_append(closure->state, iter->node);
-			hashset_put(closure->new, iter->node);
+		if (!hashset_contains(added, iter->node)) {
+			hashset_put(added, iter->node);
+			state_append(state, iter->node);
+			state_ordered_put(new, iter->node);
 		}
 		iter = iter->next;
 	}
@@ -150,15 +153,16 @@ static struct state *transition(struct arena *arena,
 	struct state *ret;
 	struct state_item *state_iter;
 	struct nfa_list *nfa_iter;
-	struct nfa_node *node;
+	long node;
+	struct nfa *nfa;
 
-	(void) arg;
+	nfa = (struct nfa *) arg;
 
 	ret = state_new(arena);
 	state_iter = state->head;
 	while (state_iter != NULL) {
 		node = state_iter->value;
-		nfa_iter = node->transitions[c];
+		nfa_iter = nfa->nodes[node].transitions[c];
 		while (nfa_iter != NULL) {
 			state_append(ret, nfa_iter->node);
 			nfa_iter = nfa_iter->next;
@@ -182,14 +186,13 @@ static char *followups(struct state *state, void *arg) {
 
 static int state_accepted(struct state *state, void *arg) {
 	struct state_item *iter;
-	struct nfa_node *node;
+	struct nfa *nfa;
 
-	(void) arg;
+	nfa = (struct nfa *) arg;
 
 	iter = state->head;
 	while (iter != NULL) {
-		node = (struct nfa_node *) iter->value;
-		if (node->should_accept) {
+		if (nfa->nodes[iter->value].should_accept) {
 			return 1;
 		}
 		iter = iter->next;

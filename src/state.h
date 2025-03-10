@@ -9,14 +9,14 @@
  * states in the nfa. also, the closure() function in lr parsers corresponds to
  * this idea as well. */
 
-/* linked list of void * pointers, sorted in ascending order
+/* linked list of item ids, sorted in ascending order
  *
  * we maintain this sorting with a basic insertion sort. this means that
  * creating a new state takes O(n^2) time where n is the number of items in the
  * state. i think this is fine since states are usually pretty small.
  * */
 struct state_item {
-	void *value;
+	long value;
 	struct state_item *next;
 };
 
@@ -45,13 +45,34 @@ struct state_set {
 	struct arena *arena;
 };
 
+struct state_list {
+	struct arena *arena;
+	struct state **states;
+	size_t len;
+	size_t alloc;
+};
+
+/* an ordered state is a dynamic array of items */
+struct state_ordered {
+	struct arena *arena;
+	long *items;
+	size_t size;
+	size_t alloc;
+};
+
 struct state *state_new(struct arena *arena);
-void state_append(struct state *state, void *item);
+void state_append(struct state *state, long item);
 
 struct state_set *state_set_new(struct arena *arena);
 void state_set_put(struct state_set *set, struct state *state, int n);
 
 /* return -1 if state isn't in set. */
 long state_set_get(struct state_set *set, struct state *state);
+
+struct state_list *state_list_new(struct arena *arena);
+void state_list_add(struct state_list *list, struct state *state);
+
+struct state_ordered *state_ordered_new(struct arena *arena);
+void state_ordered_put(struct state_ordered *state, long value);
 
 #endif

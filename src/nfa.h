@@ -9,7 +9,7 @@
 #define NFA_MAX_TRANSITIONS ((int) UCHAR_MAX + 2)
 
 struct nfa_list {
-	struct nfa_node *node;
+	long node;
 	struct nfa_list *next;
 };
 
@@ -18,6 +18,15 @@ struct nfa_node {
 	struct nfa_list *transitions[NFA_MAX_TRANSITIONS];
 };
 
-struct nfa_node *nfa_compile(struct arena *arena, char *string);
+struct nfa {
+	struct arena *arena;
+
+	size_t num_nodes;
+	size_t alloc;
+	long start_node;
+	struct nfa_node *nodes;
+};
+
+struct nfa *nfa_compile(struct arena *arena, char *string);
 
 #endif

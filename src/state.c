@@ -10,7 +10,7 @@ struct state *state_new(struct arena *arena) {
 	return ret;
 }
 
-void state_append(struct state *state, void *item) {
+void state_append(struct state *state, long item) {
 	struct state_item **ptr, *new_item;
 
 	new_item = arena_malloc(state->arena, sizeof(*new_item));
@@ -69,6 +69,44 @@ long state_set_get(struct state_set *set, struct state *state) {
 		state_iter = state_iter->next;
 	}
 	return trie_iter->n;
+}
+
+struct state_list *state_list_new(struct arena *arena) {
+	struct state_list *ret;
+	ret = arena_malloc(arena, sizeof(*ret));
+	ret->arena = arena;
+	ret->len = 0;
+	ret->alloc = 32;
+	ret->states = arena_malloc(arena, ret->alloc * sizeof(*ret->states));
+	return ret;
+}
+
+void state_list_add(struct state_list *list, struct state *state) {
+	if (list->len >= list->alloc) {
+		list->alloc *= 2;
+		list->states = arena_realloc(list->states,
+				list->alloc * sizeof(*list->states));
+	}
+	list->states[list->len++] = state;
+}
+
+struct state_ordered *state_ordered_new(struct arena *arena) {
+	struct state_ordered *ret;
+	ret = arena_malloc(arena, sizeof(*ret));
+	ret->arena = arena;
+	ret->size = 0;
+	ret->alloc = 32;
+	ret->items = arena_malloc(arena, ret->alloc * sizeof(*ret->items));
+	return ret;
+}
+
+void state_ordered_put(struct state_ordered *state, long value) {
+	if (state->size >= state->alloc) {
+		state->alloc *= 2;
+		state->items = arena_realloc(state->items,
+				state->alloc * sizeof(*state->items));
+	}
+	state->items[state->size++] = value;
 }
 
 static struct state_set_node *new_node(struct arena *arena) {

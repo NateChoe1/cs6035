@@ -3,22 +3,16 @@
 
 #include "hashmap.h"
 
-/* IMPL_DEF: pointer to unsigned long conversion*/
-
 static size_t next_bucket(size_t n);
 static void reshuffle(struct hashmap *hashmap);
 static void insert(struct hashmap *hashmap, struct hashmap_node *node);
-struct hashmap_node **get(struct hashmap *hashmap, void *key);
+struct hashmap_node **get(struct hashmap *hashmap, long key);
 
 #define INITIAL_BUCKETS 31
 
 struct hashmap *hashmap_new(struct arena *arena) {
 	struct hashmap *ret;
 	size_t i;
-
-	if (arena == NULL) {
-		arena = arena_new();
-	}
 
 	ret = arena_malloc(arena, sizeof(*ret));
 	ret->arena = arena;
@@ -32,7 +26,7 @@ struct hashmap *hashmap_new(struct arena *arena) {
 	return ret;
 }
 
-void hashmap_put(struct hashmap *hashmap, void *key, void *value) {
+void hashmap_put(struct hashmap *hashmap, long key, void *value) {
 	struct hashmap_node *node;
 
 	node = *get(hashmap, key);
@@ -51,7 +45,7 @@ void hashmap_put(struct hashmap *hashmap, void *key, void *value) {
 	insert(hashmap, node);
 }
 
-void *hashmap_get(struct hashmap *hashmap, void *key) {
+void *hashmap_get(struct hashmap *hashmap, long key) {
 	struct hashmap_node *node;
 
 	node = *get(hashmap, key);
@@ -61,7 +55,7 @@ void *hashmap_get(struct hashmap *hashmap, void *key) {
 	return node->value;
 }
 
-void hashmap_remove(struct hashmap *hashmap, void *key) {
+void hashmap_remove(struct hashmap *hashmap, long key) {
 	struct hashmap_node **node, *old;
 	node = get(hashmap, key);
 	if (*node == NULL) {
@@ -70,10 +64,6 @@ void hashmap_remove(struct hashmap *hashmap, void *key) {
 	old = *node;
 	*node = (*node)->next;
 	arena_freeptr(old);
-}
-
-void hashmap_free(struct hashmap *hashmap) {
-	arena_free(hashmap->arena);
 }
 
 /* obviously it would be ideal if we could always return prime numbers, but for
@@ -116,21 +106,21 @@ static void reshuffle(struct hashmap *hashmap) {
 }
 
 static void insert(struct hashmap *hashmap, struct hashmap_node *node) {
-	unsigned long ptr_raw;
+	unsigned long key_u;
 	size_t idx;
-	ptr_raw = (unsigned long) node->key;
-	idx = ptr_raw % hashmap->num_buckets;
+	key_u = (unsigned long) node->key;
+	idx = key_u % hashmap->num_buckets;
 	node->next = hashmap->buckets[idx];
 	hashmap->buckets[idx] = node;
 }
 
-struct hashmap_node **get(struct hashmap *hashmap, void *key) {
-	unsigned long ptr_raw;
+struct hashmap_node **get(struct hashmap *hashmap, long key) {
+	unsigned long key_u;
 	size_t idx;
 	struct hashmap_node **iter;
 
-	ptr_raw = (unsigned long) key;
-	idx = ptr_raw % hashmap->num_buckets;
+	key_u = (unsigned long) key;
+	idx = key_u % hashmap->num_buckets;
 	iter = &hashmap->buckets[idx];
 	while (*iter != NULL) {
 		if ((*iter)->key == key) {
@@ -142,7 +132,7 @@ struct hashmap_node **get(struct hashmap *hashmap, void *key) {
 }
 
 void hashmap_iter(struct hashmap *hashmap, void *closure,
-		void (*callback)(void *closure, void *key, void *value)) {
+		void (*callback)(void *closure, long key, void *value)) {
 	size_t i;
 	struct hashmap_node *iter;
 	for (i = 0; i < hashmap->num_buckets; ++i) {

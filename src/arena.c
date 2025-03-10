@@ -10,30 +10,31 @@ struct arena *arena_new() {
 	struct arena *ret;
 
 	ret = xmalloc(sizeof(*ret));
-	ret->head = NULL;
+	ret->next = NULL;
+	ret->prev = NULL;
 
 	return ret;
 }
 
 void *arena_malloc(struct arena *arena, size_t size) {
-	struct arena_region *region;
+	struct arena *region;
 	region = malloc(size + sizeof(*region));
 	if (region == NULL) {
 		fputs("arena_malloc() failed\n", stderr);
 		exit(EXIT_FAILURE);
 	}
-	region->next = arena->head;
-	region->prev = NULL;
-	if (arena->head != NULL) {
-		arena->head->prev = region;
+	region->prev = arena;
+	region->next = arena->next;
+	if (arena->next != NULL) {
+		arena->next->prev = region;
 	}
-	arena->head = region;
+	arena->next = region;
 	return (void *) ((char *) region + sizeof(*region));
 }
 
 void *arena_realloc(void *ptr, size_t size) {
-	struct arena_region *region;
-	region = (struct arena_region *) ((char *) ptr - sizeof(*region));
+	struct arena *region;
+	region = (struct arena *) ((char *) ptr - sizeof(*region));
 	region = realloc(region, size + sizeof(*region));
 	if (region == NULL) {
 		fputs("arena_realloc() failed\n", stderr);
@@ -49,8 +50,8 @@ void *arena_realloc(void *ptr, size_t size) {
 }
 
 void arena_freeptr(void *ptr) {
-	struct arena_region *region;
-	region = (struct arena_region *) ((char *) ptr - sizeof(*region));
+	struct arena *region;
+	region = (struct arena *) ((char *) ptr - sizeof(*region));
 	if (region->prev != NULL) {
 		region->prev->next = region->next;
 	}
@@ -61,14 +62,12 @@ void arena_freeptr(void *ptr) {
 }
 
 void arena_free(struct arena *arena) {
-	struct arena_region *region, *next;
-	region = arena->head;
-	while (region != NULL) {
-		next = region->next;
-		free(region);
-		region = next;
+	struct arena *next;
+	while (arena != NULL) {
+		next = arena->next;
+		free(arena);
+		arena = next;
 	}
-	free(arena);
 }
 
 void *xmalloc(size_t size) {

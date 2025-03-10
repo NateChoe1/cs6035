@@ -9,7 +9,7 @@
 
 #define EXE_PATH EXE_DIR EXE_NAME
 
-#define CFLAGS "-Wall", "-Wextra", "-Wpedantic", "-Werror", "-ggdb"
+#define CFLAGS "-Wall", "-Wextra", "-Wpedantic", "-Werror", "-ggdb", "-ansi"
 
 int compile_object(const char *src, Nob_File_Paths *headers, Nob_File_Paths *objs);
 
@@ -21,6 +21,7 @@ char *clone(char *str);
 char *append(const char *s1, const char *s2);
 
 int main(int argc, char **argv) {
+	size_t i;
 	NOB_GO_REBUILD_URSELF(argc, argv);
 
 	if (!nob_mkdir_if_not_exists(OBJ_DIR)) {
@@ -34,7 +35,7 @@ int main(int argc, char **argv) {
 
 	nob_read_entire_dir(SRC_DIR, &srcdir);
 
-	for (size_t i = 0; i < srcdir.count; ++i) {
+	for (i = 0; i < srcdir.count; ++i) {
 		if (endswith(srcdir.items[i], ".h")) {
 			nob_da_append(&headers, append(SRC_DIR, srcdir.items[i]));
 		} else if (endswith(srcdir.items[i], ".c")) {
@@ -45,7 +46,7 @@ int main(int argc, char **argv) {
 	/* the final item in headers is the source file */
 	nob_da_append(&headers, "");
 
-	for (size_t i = 0; i < cfiles.count; ++i) {
+	for (i = 0; i < cfiles.count; ++i) {
 		if (compile_object(cfiles.items[i], &headers, &objs)) {
 			return 1;
 		}
@@ -59,7 +60,7 @@ int main(int argc, char **argv) {
 	}
 	Nob_Cmd link = {0};
 	nob_cmd_append(&link, "cc", "-o", EXE_PATH);
-	for (size_t i = 0; i < objs.count; ++i) {
+	for (i = 0; i < objs.count; ++i) {
 		nob_da_append(&link, objs.items[i]);
 	}
 	if (!nob_cmd_run_sync(link)) {
@@ -68,10 +69,10 @@ int main(int argc, char **argv) {
 	nob_cmd_free(link);
 skip_link:
 
-	for (size_t i = 0; i < headers.count-1; ++i) {
+	for (i = 0; i < headers.count-1; ++i) {
 		free((void *) headers.items[i]);
 	}
-	for (size_t i = 0; i < objs.count; ++i) {
+	for (i = 0; i < objs.count; ++i) {
 		free((void *) objs.items[i]);
 	}
 

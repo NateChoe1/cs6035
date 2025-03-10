@@ -6,32 +6,28 @@ static int not_null;
 
 struct hashset_closure {
 	void *closure;
-	void (*callback)(void *, void *);
+	void (*callback)(void *, long);
 };
-static void iter_callback(void *closure, void *key, void *value);
+static void iter_callback(void *closure, long key, void *value);
 
 struct hashset *hashset_new(struct arena *arena) {
 	return (struct hashset *) hashmap_new(arena);
 }
 
-void hashset_put(struct hashset *hashset, void *ptr) {
-	hashmap_put((struct hashmap *) hashset, ptr, &not_null);
+void hashset_put(struct hashset *hashset, long value) {
+	hashmap_put((struct hashmap *) hashset, value, &not_null);
 }
 
-int hashset_contains(struct hashset *hashset, void *ptr) {
-	return hashmap_get((struct hashmap *) hashset, ptr) != NULL;
+int hashset_contains(struct hashset *hashset, long value) {
+	return hashmap_get((struct hashmap *) hashset, value) != NULL;
 }
 
-void hashset_remove(struct hashset *hashset, void *ptr) {
-	hashmap_remove((struct hashmap *) hashset, ptr);
-}
-
-void hashset_free(struct hashset *hashset) {
-	hashmap_free((struct hashmap *) hashset);
+void hashset_remove(struct hashset *hashset, long value) {
+	hashmap_remove((struct hashmap *) hashset, value);
 }
 
 void hashset_iter(struct hashset *hashset, void *closure,
-		void (*callback)(void *closure, void *item)) {
+		void (*callback)(void *closure, long item)) {
 	struct hashset_closure next_closure;
 
 	next_closure.closure = closure;
@@ -39,7 +35,7 @@ void hashset_iter(struct hashset *hashset, void *closure,
 	hashmap_iter((struct hashmap *) hashset, &next_closure, iter_callback);
 }
 
-static void iter_callback(void *closure_raw, void *key, void *value) {
+static void iter_callback(void *closure_raw, long key, void *value) {
 	struct hashset_closure *closure;
 
 	if (value == NULL) {
