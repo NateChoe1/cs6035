@@ -49,6 +49,10 @@ static void enclose_token(long token, struct state *state,
 		struct hashset *seen, struct hashset *visited,
 		struct long_list *to_visit, struct item_list *items);
 
+static void init_row(struct arena *arena,
+		struct lr_table *table, long state, long start,
+		struct item_list *items, struct dfa *dfa);
+
 struct lr_grammar *lr_grammar_new(struct arena *arena,
 		long num_terminals, long num_tokens) {
 	struct lr_grammar *ret;
@@ -84,6 +88,7 @@ void lr_grammar_add(struct lr_grammar *grammar,
 	rule->prod = production;
 	rule->prod_len = prod_len;
 	rule->next = grammar->rules[idx];
+	rule->token = product;
 	grammar->rules[idx] = rule;
 
 	rule->idx = grammar->num_rules;
@@ -128,6 +133,8 @@ struct lr_table *lr_compile(struct arena *arena,
 	struct arena *ia, *da;
 	struct item_list *items;
 	struct dfa *dfa;
+	struct lr_table *ret;
+	long i;
 
 	ia = arena_new();
 	items = get_items(ia, grammar);
@@ -135,13 +142,20 @@ struct lr_table *lr_compile(struct arena *arena,
 	da = arena_new();
 	dfa = make_dfa(da, items, start_token);
 
-	(void) arena;
-	(void) dfa;
+	ret = arena_malloc(arena, sizeof(*ret));
+	ret->arena = arena;
+	ret->num_states = dfa->num_nodes;
+	ret->num_tokens = grammar->num_tokens;
+	ret->table = arena_malloc(arena, ret->num_states * sizeof(*ret->table));
+
+	for (i = 0; i < dfa->num_nodes; ++i) {
+		init_row(arena, ret, i, start_token, items, dfa);
+	}
 
 	arena_free(ia);
 	arena_free(da);
 
-	return NULL;
+	return ret;
 }
 
 static struct item_list *get_items(struct arena *arena,
@@ -357,5 +371,60 @@ static void enclose_token(long token, struct state *state,
 		enclose_item(rule->ii, seen, visited, to_visit, items);
 seen:
 		rule = rule->next;
+	}
+}
+
+static void init_row(struct arena *arena,
+		struct lr_table *table, long state, long start,
+		struct item_list *items, struct dfa *dfa) {
+	long i;
+	struct lr_grammar *grammar;
+	struct lr_table_ent *row, def_rule;
+	struct state_item *iter;
+	struct item *item;
+
+	grammar = items->grammar;
+
+	/* get the default action for this row (reduce, accept, or error) */
+	def_rule.type = LR_ERROR;
+	iter = dfa->nodes[state].state->head;
+	while (iter != NULL) {
+		item = &items->items[iter->value];
+
+		if (item->position < item->rule->prod_len) {
+			goto skip;
+		}
+
+		/* reduce/reduce conflict
+		 *
+		 * as of now, we just default to the first reduction
+		 *
+		 * TODO: show an error message
+		 * */
+		if (def_rule.type != LR_ERROR) {
+			goto skip;
+		}
+
+		if (item->rule->token == start) {
+			table->table[state] = NULL;
+			return;
+		}
+		def_rule.type = LR_REDUCE;
+		def_rule.value = item->rule->idx;
+skip:
+		iter = iter->next;
+	}
+
+	table->table[state] = arena_malloc(arena,
+			table->num_tokens * sizeof(*table->table[state]));
+	row = table->table[state];
+
+	for (i = 0; i < grammar->num_tokens; ++i) {
+		memcpy(&row[i], &def_rule, sizeof(def_rule));
+		if (dfa->nodes[state].links[i] < 0) {
+			continue;
+		}
+		row[i].type = LR_TRANSITION;
+		row[i].value = dfa->nodes[state].links[i];
 	}
 }

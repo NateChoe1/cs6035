@@ -7,6 +7,7 @@
  * multi-token lookahead and build all the data structures to handle that. */
 
 struct lr_rule {
+	long token;
 	long *prod;
 	long prod_len;
 
@@ -49,12 +50,12 @@ struct lr_grammar {
 };
 
 enum lr_rtype {
-	LR_SHIFT,
+	/* equivalent to both shift and goto in the cs6035 slides */
+	LR_TRANSITION,
+
 	LR_REDUCE,
-	LR_GOTO,
 	LR_ERROR,
-	LR_ACCEPT,
-	LR_BLANK
+	LR_ACCEPT
 };
 
 struct lr_table_ent {
@@ -73,8 +74,10 @@ struct lr_table {
 	 * this is why i'm only handling the lr(1) case, otherwise we would need
 	 * some ridiculous table[state][t1,t2,...,tn] structure and i'm way too
 	 * lazy to implement that.
+	 *
+	 * if table[state] == NULL, then state is an accept state.
 	 * */
-	struct lr_rule **table;
+	struct lr_table_ent **table;
 };
 
 struct lr_grammar *lr_grammar_new(struct arena *arena,
