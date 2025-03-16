@@ -246,6 +246,9 @@ static void enclose(struct state *state, void *arg) {
 	}
 
 	for (i = 0; i < (long) to_visit.len; ++i) {
+		if (to_visit.values[i] < items->grammar->num_terminals) {
+			continue;
+		}
 		enclose_token(to_visit.values[i], state,
 				seen, visited, &to_visit, items);
 	}
@@ -347,9 +350,10 @@ static void enclose_token(long token, struct state *state,
 	rule = grammar->rules[token - grammar->num_terminals];
 
 	while (rule != NULL) {
-		if (!hashset_contains(seen, rule->ii)) {
+		if (hashset_contains(seen, rule->ii)) {
 			goto seen;
 		}
+		state_append(state, rule->ii);
 		enclose_item(rule->ii, seen, visited, to_visit, items);
 seen:
 		rule = rule->next;
