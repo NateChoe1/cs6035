@@ -15,6 +15,9 @@ struct dfa_node {
 	/* `links` is an index in `struct dfa.nodes`
 	 * len(links) == num_items */
 	int *links;
+
+	/* if save_states == 0, then this is always NULL */
+	struct state *state;
 };
 
 struct dfa {
@@ -28,10 +31,10 @@ struct dfa {
 	struct arena *arena;
 };
 
-struct dfa *dfa_new(struct arena *arena, int num_items,
+struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
 		/* initial state of the dfa, doesn't have to be a closure, may
-		 * be modified by this function, should be discarded with an
-		 * arena after use */
+		 * be modified by this function. if save_states != 0, then
+		 * initial_state should be created with `arena`. */
 		struct state *initial_state,
 
 		/* converts state to closure(state) */
@@ -42,10 +45,10 @@ struct dfa *dfa_new(struct arena *arena, int num_items,
 			int item, void *arg),
 
 		/* returns a set of items that could conceivably follow this
-		 * state. return value is an array of chars of length
-		 * `num_items`, where index 0 is a boolean indicating that item
-		 * 0 could follow this state, index 1 for item 1, and so on. */
-		char *(*followups)(struct state *state, void *arg),
+		 * state. `ret` is an array of chars of length `num_items`,
+		 * where index 0 is a boolean indicating that item 0 could
+		 * follow this state, index 1 for item 1, and so on. */
+		void (*followups)(struct state *state, void *arg, char *ret),
 
 		/* gets the `r` value, some generic integer */
 		int (*get_r)(struct state *state, void *arg),

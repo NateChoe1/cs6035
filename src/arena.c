@@ -6,7 +6,7 @@
 
 /* IMPL-DEF: weird pointer manipulation */
 
-struct arena *arena_new() {
+struct arena *arena_new(void) {
 	struct arena *ret;
 
 	ret = xmalloc(sizeof(*ret));

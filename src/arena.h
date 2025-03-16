@@ -8,7 +8,7 @@ struct arena {
 	struct arena *prev;
 };
 
-struct arena *arena_new();
+struct arena *arena_new(void);
 void *arena_malloc(struct arena *arena, size_t size);
 void *arena_realloc(void *ptr, size_t size);
 void arena_freeptr(void *ptr);

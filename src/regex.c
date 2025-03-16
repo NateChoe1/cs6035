@@ -17,7 +17,7 @@ static void enclose_item(struct nfa *nfa,
 static struct state *transition(struct arena *arena,
 		struct state *state, int c, void *arg);
 
-static char *followups(struct state *state, void *arg);
+static void followups(struct state *state, void *arg, char *ret);
 
 static int state_accepted(struct state *state, void *arg);
 
@@ -36,7 +36,7 @@ struct regex *regex_compile(struct arena *arena, char *pattern) {
 	initial_state = state_new(arena);
 	state_append(initial_state, nfa->start_node);
 
-	ret = dfa_new(arena, NUM_CHARS, initial_state,
+	ret = dfa_new(arena, NUM_CHARS, 0, initial_state,
 			enclose,
 			transition,
 			followups,
@@ -178,14 +178,13 @@ static struct state *transition(struct arena *arena,
 	return ret;
 }
 
-static char *followups(struct state *state, void *arg) {
-	static char ret[NUM_CHARS];
+static void followups(struct state *state, void *arg, char *ret) {
 	struct nfa *nfa;
 	struct state_item *iter;
 	long node;
 	int i;
 
-	memset(ret, 0, sizeof(ret));
+	memset(ret, 0, NUM_CHARS);
 	nfa = (struct nfa *) arg;
 
 	iter = state->head;
@@ -197,7 +196,6 @@ static char *followups(struct state *state, void *arg) {
 
 		iter = iter->next;
 	}
-	return ret;
 }
 
 static int state_accepted(struct state *state, void *arg) {
