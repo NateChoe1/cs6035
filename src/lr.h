@@ -54,8 +54,7 @@ enum lr_rtype {
 	LR_TRANSITION,
 
 	LR_REDUCE,
-	LR_ERROR,
-	LR_ACCEPT
+	LR_ERROR
 };
 
 struct lr_table_ent {
