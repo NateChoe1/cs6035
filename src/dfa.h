@@ -10,7 +10,7 @@ struct dfa_node {
 	/* generic value, its meaning depends on the specific dfa
 	 * for example, for regexes, r is a boolean that tells you if this is an
 	 * accept state */
-	int r;
+	long r;
 
 	/* `links` is an index in `struct dfa.nodes`
 	 * len(links) == num_items */
@@ -31,7 +31,7 @@ struct dfa {
 	struct arena *arena;
 };
 
-struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
+struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 		/* initial state of the dfa, doesn't have to be a closure, may
 		 * be modified by this function. if save_states != 0, then
 		 * initial_state should be created with `arena`. */
@@ -42,7 +42,7 @@ struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
 
 		/* returns goto(state, item) */
 		struct state *(*step)(struct arena *, struct state *,
-			int item, void *arg),
+			long item, void *arg),
 
 		/* returns a set of items that could conceivably follow this
 		 * state. `ret` is an array of chars of length `num_items`,
@@ -51,7 +51,7 @@ struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
 		void (*followups)(struct state *state, void *arg, char *ret),
 
 		/* gets the `r` value, some generic integer */
-		int (*get_r)(struct state *state, void *arg),
+		long (*get_r)(struct state *state, void *arg),
 
 		/* generic argument passed to each of these functions for state
 		 * management */

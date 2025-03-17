@@ -1,6 +1,6 @@
 #include "state.h"
 
-static struct state_set_node *new_node(struct arena *arena);
+static struct state_map_node *new_node(struct arena *arena);
 
 struct state *state_new(struct arena *arena) {
 	struct state *ret;
@@ -25,8 +25,8 @@ void state_append(struct state *state, long item) {
 	*ptr = new_item;
 }
 
-struct state_set *state_set_new(struct arena *arena) {
-	struct state_set *ret;
+struct state_map *state_map_new(struct arena *arena) {
+	struct state_map *ret;
 
 	ret = arena_malloc(arena, sizeof(*ret));
 	ret->root = new_node(arena);
@@ -34,8 +34,8 @@ struct state_set *state_set_new(struct arena *arena) {
 	return ret;
 }
 
-void state_set_put(struct state_set *set, struct state *state, int n) {
-	struct state_set_node *trie_iter, *trie_tmp;
+void state_map_put(struct state_map *set, struct state *state, long n) {
+	struct state_map_node *trie_iter, *trie_tmp;
 	struct state_item *state_iter;
 	trie_iter = set->root;
 	state_iter = state->head;
@@ -54,8 +54,8 @@ void state_set_put(struct state_set *set, struct state *state, int n) {
 	trie_iter->n = n;
 }
 
-long state_set_get(struct state_set *set, struct state *state) {
-	struct state_set_node *trie_iter;
+long state_map_get(struct state_map *set, struct state *state) {
+	struct state_map_node *trie_iter;
 	struct state_item *state_iter;
 
 	trie_iter = set->root;
@@ -109,8 +109,8 @@ void state_ordered_put(struct state_ordered *state, long value) {
 	state->items[state->size++] = value;
 }
 
-static struct state_set_node *new_node(struct arena *arena) {
-	struct state_set_node *ret;
+static struct state_map_node *new_node(struct arena *arena) {
+	struct state_map_node *ret;
 	ret = arena_malloc(arena, sizeof(*ret));
 	ret->n = -1;
 	ret->children = hashmap_new(arena);

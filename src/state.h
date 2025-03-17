@@ -32,16 +32,16 @@ struct state {
  *
  * this linked list of pointers can be treated as a string, and we can use a
  * trie to store a set of linked lists of pointers. */
-struct state_set_node {
-	/* the number associated with this state */
+struct state_map_node {
+	/* the data associated with this state */
 	long n;
 
-	/* maps void * pointers to struct state_set_node * pointers */
+	/* maps items to struct state_map_node * pointers */
 	struct hashmap *children;
 };
 
-struct state_set {
-	struct state_set_node *root;
+struct state_map {
+	struct state_map_node *root;
 	struct arena *arena;
 };
 
@@ -63,11 +63,11 @@ struct state_ordered {
 struct state *state_new(struct arena *arena);
 void state_append(struct state *state, long item);
 
-struct state_set *state_set_new(struct arena *arena);
-void state_set_put(struct state_set *set, struct state *state, int n);
+struct state_map *state_map_new(struct arena *arena);
+void state_map_put(struct state_map *set, struct state *state, long n);
 
 /* return -1 if state isn't in set. */
-long state_set_get(struct state_set *set, struct state *state);
+long state_map_get(struct state_map *set, struct state *state);
 
 struct state_list *state_list_new(struct arena *arena);
 void state_list_add(struct state_list *list, struct state *state);

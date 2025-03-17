@@ -37,10 +37,10 @@ static struct dfa *make_dfa(struct arena *arena,
 
 /* dfa methods */
 static void enclose(struct state *state, void *arg);
-static struct state *step(struct arena *arena, struct state *state, int item,
+static struct state *step(struct arena *arena, struct state *state, long item,
 		void *arg);
 static void followups(struct state *state, void *arg, char *ret);
-static int get_r(struct state *state, void *arg);
+static long get_r(struct state *state, void *arg);
 
 static void enclose_item(long value,
 		struct hashset *seen, struct hashset *visited,
@@ -226,7 +226,7 @@ static struct dfa *make_dfa(struct arena *arena,
 	initial_state = state_new(arena);
 	state_append(initial_state, start_rule->ii);
 
-	return dfa_new(arena, (int) grammar->num_tokens, 1,
+	return dfa_new(arena, grammar->num_tokens, 1,
 			initial_state,
 			enclose,
 			step,
@@ -272,7 +272,7 @@ static void enclose(struct state *state, void *arg) {
 	arena_free(arena);
 }
 
-static struct state *step(struct arena *arena, struct state *state, int item,
+static struct state *step(struct arena *arena, struct state *state, long item,
 		void *arg) {
 	struct state_item *iter;
 	struct item_list *items;
@@ -324,7 +324,7 @@ skip:
 	}
 }
 
-static int get_r(struct state *state, void *arg) {
+static long get_r(struct state *state, void *arg) {
 	(void) state;
 	(void) arg;
 	return 0;

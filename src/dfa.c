@@ -7,25 +7,25 @@ static long add_state(struct dfa *dfa);
 static void explore_state(struct dfa *dfa,
 		struct arena *arena, int save_states,
 		struct state *state, struct state_list *new_states,
-		struct state_set *seen,
+		struct state_map *seen,
 		void (*enclose)(struct state *state, void *arg),
 		struct state *(*step)(struct arena *, struct state *,
-			int item, void *arg),
+			long item, void *arg),
 		void (*get_followups)(struct state *state, void *arg, char *r),
-		int (*get_r)(struct state *state, void *arg),
+		long (*get_r)(struct state *state, void *arg),
 		void *arg,
 		char *followups);
 
-struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
+struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 		struct state *initial_state,
 		void (*enclose)(struct state *state, void *arg),
 		struct state *(*step)(struct arena *, struct state *,
-			int item, void *arg),
+			long item, void *arg),
 		void (*followups)(struct state *state, void *arg, char *ret),
-		int (*get_r)(struct state *state, void *arg),
+		long (*get_r)(struct state *state, void *arg),
 		void *arg) {
 	struct arena *ss, *as, *at1, *at2;
-	struct state_set *state_set;
+	struct state_map *state_map;
 	struct state_list *unchecked, *new;
 	struct dfa *ret;
 	size_t i;
@@ -42,11 +42,11 @@ struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
 	ss = arena_new();
 	at1 = arena_new();
 
-	state_set = state_set_new(ss);
+	state_map = state_map_new(ss);
 	unchecked = state_list_new(at1);
 
 	enclose(initial_state, arg);
-	state_set_put(state_set, initial_state, add_state(ret));
+	state_map_put(state_map, initial_state, add_state(ret));
 	if (save_states) {
 		ret->nodes[0].state = initial_state;
 	}
@@ -61,7 +61,7 @@ struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
 
 		for (i = 0; i < unchecked->len; ++i) {
 			explore_state(ret, as, save_states,
-					unchecked->states[i], new, state_set,
+					unchecked->states[i], new, state_map,
 					enclose, step, followups, get_r, arg,
 					fbuf);
 		}
@@ -83,19 +83,19 @@ struct dfa *dfa_new(struct arena *arena, int num_items, int save_states,
 static void explore_state(struct dfa *dfa,
 		struct arena *arena, int save_states,
 		struct state *state, struct state_list *new_states,
-		struct state_set *seen,
+		struct state_map *seen,
 		void (*enclose)(struct state *state, void *arg),
 		struct state *(*step)(struct arena *, struct state *,
-			int item, void *arg),
+			long item, void *arg),
 		void (*get_followups)(struct state *state, void *arg, char *r),
-		int (*get_r)(struct state *state, void *arg),
+		long (*get_r)(struct state *state, void *arg),
 		void *arg,
 		char *followups) {
 	struct state *new;
-	int c;
+	long c;
 	long old_state, new_state;
 
-	old_state = state_set_get(seen, state);
+	old_state = state_map_get(seen, state);
 	get_followups(state, arg, followups);
 
 	for (c = 0; c < dfa->num_items; ++c) {
@@ -105,7 +105,7 @@ static void explore_state(struct dfa *dfa,
 
 		new = step(arena, state, c, arg);
 		enclose(new, arg);
-		new_state = state_set_get(seen, new);
+		new_state = state_map_get(seen, new);
 		if (new_state < 0) {
 			goto make_new_state;
 		}
@@ -122,12 +122,12 @@ existing_state:
 		if (save_states) {
 			dfa->nodes[new_state].state = new;
 		}
-		state_set_put(seen, new, new_state);
+		state_map_put(seen, new, new_state);
 	}
 }
 
 static long add_state(struct dfa *dfa) {
-	int i;
+	long i;
 	if (dfa->num_nodes >= (long) dfa->alloc) {
 		dfa->alloc *= 2;
 		dfa->nodes = arena_realloc(dfa->nodes,
