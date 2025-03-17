@@ -10,6 +10,7 @@ struct item {
 
 	/* in the range [0, rule->prod_len] */
 	long position;
+	long ahead;
 };
 
 struct item_list {
@@ -30,7 +31,7 @@ static struct item_list *get_items(struct arena *arena,
 		struct lr_grammar *grammar);
 static void add_rule_items(struct item_list *list, struct lr_rule *rule);
 static void add_item(struct item_list *list,
-		struct lr_rule *rule, long position);
+		struct lr_rule *rule, long position, long ahead);
 static struct dfa *make_dfa(struct arena *arena,
 		struct item_list *items, long start_token);
 
@@ -45,7 +46,11 @@ static void enclose_item(long value,
 		struct hashset *seen, struct hashset *visited,
 		struct long_list *to_visit, struct item_list *items);
 
-static void enclose_token(long token, struct state *state,
+static void enclose_tpair(long pair, struct state *state,
+		struct hashset *seen, struct hashset *visited,
+		struct long_list *to_visit, struct item_list *items);
+
+static void enclose_anont(long token, long ahead, struct state *state,
 		struct hashset *seen, struct hashset *visited,
 		struct long_list *to_visit, struct item_list *items);
 
@@ -178,17 +183,19 @@ static struct item_list *get_items(struct arena *arena,
 }
 
 static void add_rule_items(struct item_list *list, struct lr_rule *rule) {
-	long i;
+	long i, j;
 
 	rule->ii = list->len;
 
-	for (i = 0; i <= (long) rule->prod_len; ++i) {
-		add_item(list, rule, i);
+	for (i = 0; i < list->grammar->num_terminals; ++i) {
+		for (j = 0; j <= (long) rule->prod_len; ++j) {
+			add_item(list, rule, j, i);
+		}
 	}
 }
 
 static void add_item(struct item_list *list,
-		struct lr_rule *rule, long position) {
+		struct lr_rule *rule, long position, long ahead) {
 	if (list->len >= list->alloc) {
 		list->alloc *= 2;
 		list->items = arena_realloc(list->items,
@@ -196,6 +203,7 @@ static void add_item(struct item_list *list,
 	}
 	list->items[list->len].rule = rule;
 	list->items[list->len].position = position;
+	list->items[list->len].ahead = ahead;
 	++list->len;
 }
 
@@ -215,8 +223,6 @@ static struct dfa *make_dfa(struct arena *arena,
 		return NULL;
 	}
 
-	start_rule = grammar->rules[start_token - grammar->num_terminals];
-
 	initial_state = state_new(arena);
 	state_append(initial_state, start_rule->ii);
 
@@ -229,11 +235,11 @@ static struct dfa *make_dfa(struct arena *arena,
 			(void *) items);
 }
 
-/* rules for lr(0) parsers:
+/* rules for lr(1) parsers:
  *
- * if a state contains item A -> a . B b
- * and B -> . c is an item
- * then the state also contains B -> . c
+ * if a state contains item A -> a . B b  c
+ * and B -> c is a rule
+ * then the state also contains B -> . c  first(bc)
  * */
 static void enclose(struct state *state, void *arg) {
 	struct arena *arena;
@@ -260,10 +266,7 @@ static void enclose(struct state *state, void *arg) {
 	}
 
 	for (i = 0; i < (long) to_visit.len; ++i) {
-		if (to_visit.values[i] < items->grammar->num_terminals) {
-			continue;
-		}
-		enclose_token(to_visit.values[i], state,
+		enclose_tpair(to_visit.values[i], state,
 				seen, visited, &to_visit, items);
 	}
 	arena_free(arena);
@@ -322,6 +325,8 @@ skip:
 }
 
 static int get_r(struct state *state, void *arg) {
+	(void) state;
+	(void) arg;
 	return 0;
 }
 
@@ -329,11 +334,12 @@ static void enclose_item(long value,
 		struct hashset *seen, struct hashset *visited,
 		struct long_list *to_visit, struct item_list *items) {
 	struct lr_rule *rule;
-	long next, position;
+	long next, position, ahead;
 
 	hashset_put(seen, value);
 	rule = items->items[value].rule;
 	position = items->items[value].position;
+	ahead = items->items[value].ahead;
 
 	/* corresponds to items like A -> a . */
 	if (position >= rule->prod_len) {
@@ -341,6 +347,9 @@ static void enclose_item(long value,
 	}
 
 	next = rule->prod[position];
+	next *= items->grammar->num_tokens;
+	next += (position+1 < rule->prod_len) ? rule->prod[position+1] : ahead;
+
 	if (hashset_contains(visited, next)) {
 		return;
 	}
@@ -354,22 +363,67 @@ static void enclose_item(long value,
 	to_visit->values[to_visit->len++] = next;
 }
 
-static void enclose_token(long token, struct state *state,
+static void enclose_tpair(long pair, struct state *state,
 		struct hashset *seen, struct hashset *visited,
 		struct long_list *to_visit, struct item_list *items) {
 	struct lr_rule *rule;
 	struct lr_grammar *grammar;
+	long token, ahead, item;
 
 	grammar = items->grammar;
+	token = pair / grammar->num_tokens;
+	ahead = pair % grammar->num_tokens;
+
+	if (token < grammar->num_terminals) {
+		return;
+	}
+
+	if (ahead >= grammar->num_terminals) {
+		enclose_anont(token, ahead,
+				state, seen, visited, to_visit, items);
+		return;
+	}
+
 	rule = grammar->rules[token - grammar->num_terminals];
 
 	while (rule != NULL) {
-		if (hashset_contains(seen, rule->ii)) {
+		item = rule->ii;
+		item += (rule->prod_len+1) * ahead;
+
+		/* if ahead is n, rule is S->a b, item is S->a b  n where S is
+		 * definitely a nonterminal and n is definitely a terminal */
+
+		if (hashset_contains(seen, item)) {
 			goto seen;
 		}
-		state_append(state, rule->ii);
-		enclose_item(rule->ii, seen, visited, to_visit, items);
+		state_append(state, item);
+		enclose_item(item, seen, visited, to_visit, items);
 seen:
+		rule = rule->next;
+	}
+}
+
+/* for some exploratory state a -> b . B c  d, c is a nonterminal. this function
+ * calls `explore_tpair(B, first(c))` for all first(c)*/
+static void enclose_anont(long token, long ahead, struct state *state,
+		struct hashset *seen, struct hashset *visited,
+		struct long_list *to_visit, struct item_list *items) {
+	struct lr_grammar *grammar;
+	struct lr_rule *rule;
+	long base, pair;
+
+	grammar = items->grammar;
+	base = token * grammar->num_tokens;
+
+	rule = grammar->rules[ahead];
+	while (rule != NULL) {
+		pair = base + rule->prod[0];
+		if (hashset_contains(visited, pair)) {
+			goto skip;
+		}
+		hashset_put(visited, pair);
+		enclose_tpair(pair, state, seen, visited, to_visit, items);
+skip:
 		rule = rule->next;
 	}
 }
@@ -379,52 +433,63 @@ static void init_row(struct arena *arena,
 		struct item_list *items, struct dfa *dfa) {
 	long i;
 	struct lr_grammar *grammar;
-	struct lr_table_ent *row, def_rule;
+	struct lr_table_ent *row;
 	struct state_item *iter;
 	struct item *item;
 
 	grammar = items->grammar;
 
-	/* get the default action for this row (reduce, accept, or error) */
-	def_rule.type = LR_ERROR;
-	iter = dfa->nodes[state].state->head;
-	while (iter != NULL) {
-		item = &items->items[iter->value];
+	row = arena_malloc(arena, table->num_tokens * sizeof(*row));
 
-		if (item->position < item->rule->prod_len) {
-			goto skip;
-		}
-
-		/* reduce/reduce conflict
-		 *
-		 * as of now, we just default to the first reduction
-		 *
-		 * TODO: show an error message
-		 * */
-		if (def_rule.type != LR_ERROR) {
-			goto skip;
-		}
-
-		if (item->rule->token == start) {
-			table->table[state] = NULL;
-			return;
-		}
-		def_rule.type = LR_REDUCE;
-		def_rule.value = item->rule->idx;
-skip:
-		iter = iter->next;
-	}
-
-	table->table[state] = arena_malloc(arena,
-			table->num_tokens * sizeof(*table->table[state]));
-	row = table->table[state];
-
+	/* handle all shift/transition entries
+	 * also initialize every entry in this row to an error transition */
 	for (i = 0; i < grammar->num_tokens; ++i) {
-		memcpy(&row[i], &def_rule, sizeof(def_rule));
 		if (dfa->nodes[state].links[i] < 0) {
+			row[i].type = LR_ERROR;
 			continue;
 		}
 		row[i].type = LR_TRANSITION;
 		row[i].value = dfa->nodes[state].links[i];
 	}
+
+	/* handle all reduction states
+	 * also potentially mark this state as an accept state */
+	iter = dfa->nodes[state].state->head;
+	while (iter != NULL) {
+		item = &items->items[iter->value];
+
+		/* this item corresponds to a shift state */
+		if (item->position < item->rule->prod_len) {
+			goto skip;
+		}
+
+		if (item->rule->token == start) {
+			arena_freeptr((void *) row);
+			table->table[state] = NULL;
+			return;
+		}
+
+		i = item->ahead;
+
+		/* reduce/reduce conflict
+		 *
+		 * TODO: show an error message */
+		if (row[i].type == LR_REDUCE) {
+			goto skip;
+		}
+
+		/* shift/reduce conflict
+		 *
+		 * TODO: show an error message */
+		if (row[i].type == LR_TRANSITION) {
+			goto skip;
+		}
+
+		row[i].type = LR_REDUCE;
+		row[i].value = item->rule->idx;
+skip:
+		iter = iter->next;
+	}
+
+	table->table[state] = row;
 }

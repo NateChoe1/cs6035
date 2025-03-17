@@ -9,7 +9,7 @@
 
 #define EXE_PATH EXE_DIR EXE_NAME
 
-#define CFLAGS "-Wall", "-Wextra", "-Wpedantic", "-Wno-unused-parameter", "-Werror", "-ggdb", "-ansi"
+#define CFLAGS "-Wall", "-Wextra", "-Wpedantic", "-Werror", "-ggdb", "-ansi"
 
 int compile_object(const char *src, Nob_File_Paths *headers, Nob_File_Paths *objs);
 

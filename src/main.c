@@ -73,7 +73,7 @@ static void print_table(struct lr_table *table, char **tokens) {
 				fputs("ERROR\t", stdout);
 				continue;
 			case LR_TRANSITION:
-				fputs("S/", stdout);
+				fputs("T/", stdout);
 				break;
 			case LR_REDUCE:
 				fputs("R/", stdout);
