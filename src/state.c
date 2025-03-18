@@ -1,6 +1,10 @@
 #include "state.h"
 
 static struct state_map_node *new_node(struct arena *arena);
+static struct state_map_node *find(struct state_map *map, struct state *state,
+		int create);
+static struct state_map_node *step(struct arena *arena,
+		struct state_map_node *node, long item, int create);
 
 struct state *state_new(struct arena *arena) {
 	struct state *ret;
@@ -20,9 +24,36 @@ void state_append(struct state *state, long item) {
 		ptr = &(*ptr)->next;
 	}
 
+	/* states can't contain duplicate items */
+	if (*ptr != NULL && (*ptr)->value == item) {
+		return;
+	}
+
 	new_item->value = item;
 	new_item->next = *ptr;
 	*ptr = new_item;
+}
+
+void state_join(struct state *base, struct state *additions) {
+	struct state_item *i, **p, *n;
+	i = additions->head;
+	p = &base->head;
+	while (i != NULL) {
+		while (*p != NULL && (*p)->value < i->value) {
+			p = &(*p)->next;
+		}
+		if (*p != NULL && (*p)->value == i->value) {
+			goto skip;
+		}
+		n = arena_malloc(base->arena, sizeof(*n));
+		n->value = i->value;
+		if (*p != NULL) {
+			n->next = (*p)->next;
+		}
+		*p = n;
+skip:
+		i = i->next;
+	}
 }
 
 struct state_map *state_map_new(struct arena *arena) {
@@ -35,40 +66,17 @@ struct state_map *state_map_new(struct arena *arena) {
 }
 
 void state_map_put(struct state_map *set, struct state *state, long n) {
-	struct state_map_node *trie_iter, *trie_tmp;
-	struct state_item *state_iter;
-	trie_iter = set->root;
-	state_iter = state->head;
-	while (state_iter != NULL) {
-		trie_tmp = hashmap_get(trie_iter->children, state_iter->value);
-		if (trie_tmp == NULL) {
-			trie_tmp = new_node(set->arena);
-			hashmap_put(trie_iter->children,
-					state_iter->value, (void *) trie_tmp);
-		}
-
-		trie_iter = trie_tmp;
-		state_iter = state_iter->next;
-	}
-
-	trie_iter->n = n;
+	find(set, state, 1)->n = n;
 }
 
 long state_map_get(struct state_map *set, struct state *state) {
-	struct state_map_node *trie_iter;
-	struct state_item *state_iter;
+	struct state_map_node *node;
 
-	trie_iter = set->root;
-	state_iter = state->head;
-
-	while (state_iter != NULL) {
-		trie_iter = hashmap_get(trie_iter->children, state_iter->value);
-		if (trie_iter == NULL) {
-			return -1;
-		}
-		state_iter = state_iter->next;
+	node = find(set, state, 0);
+	if (node == NULL) {
+		return -1;
 	}
-	return trie_iter->n;
+	return node->n;
 }
 
 struct state_list *state_list_new(struct arena *arena) {
@@ -114,5 +122,36 @@ static struct state_map_node *new_node(struct arena *arena) {
 	ret = arena_malloc(arena, sizeof(*ret));
 	ret->n = -1;
 	ret->children = hashmap_new(arena);
+	return ret;
+}
+
+static struct state_map_node *find(struct state_map *map, struct state *state,
+		int create) {
+	struct state_map_node *node;
+	struct state_item *iter;
+
+	node = map->root;
+	iter = state->head;
+	while (iter != NULL) {
+		node = step(map->arena, node, iter->value, create);
+		if (node == NULL) {
+			return NULL;
+		}
+		iter = iter->next;
+	}
+	return node;
+}
+
+static struct state_map_node *step(struct arena *arena,
+		struct state_map_node *node, long item, int create) {
+	struct state_map_node *ret;
+	ret = hashmap_get(node->children, item);
+	if (ret == NULL) {
+		if (!create) {
+			return NULL;
+		}
+		ret = new_node(arena);
+		hashmap_put(node->children, item, (void *) ret);
+	}
 	return ret;
 }
