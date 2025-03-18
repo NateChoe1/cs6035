@@ -31,30 +31,37 @@ struct dfa {
 	struct arena *arena;
 };
 
+struct dfa_builder {
+	/* converts state to closure(state) */
+	void (*enclose)(struct state *state, void *arg);
+
+	/* returns goto(state, item) */
+	struct state *(*step)(struct arena *, struct state *, long item,
+			void *arg);
+
+	/* returns a set of items that could conceivably follow this
+	 * state. `ret` is an array of chars of length `num_items`,
+	 * where index 0 is a boolean indicating that item 0 could
+	 * follow this state, index 1 for item 1, and so on. */
+	void (*followups)(struct state *state, void *arg, char *ret);
+
+	/* gets the `r` value, some generic long associated with each node
+	 *
+	 * this is used for example in regexes, where 1 indicates that this is
+	 * an accept state.
+	 *
+	 * if this is NULL, then we default to f(s, arg) = NULL
+	 * */
+	long (*get_r)(struct state *state, void *arg);
+
+};
+
 struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
-		/* initial state of the dfa, doesn't have to be a closure, may
-		 * be modified by this function. if save_states != 0, then
-		 * initial_state should be created with `arena`. */
 		struct state *initial_state,
+		struct dfa_builder *builder,
 
-		/* converts state to closure(state) */
-		void (*enclose)(struct state *state, void *arg),
-
-		/* returns goto(state, item) */
-		struct state *(*step)(struct arena *, struct state *,
-			long item, void *arg),
-
-		/* returns a set of items that could conceivably follow this
-		 * state. `ret` is an array of chars of length `num_items`,
-		 * where index 0 is a boolean indicating that item 0 could
-		 * follow this state, index 1 for item 1, and so on. */
-		void (*followups)(struct state *state, void *arg, char *ret),
-
-		/* gets the `r` value, some generic integer */
-		long (*get_r)(struct state *state, void *arg),
-
-		/* generic argument passed to each of these functions for state
-		 * management */
+		/* generic argument passed to each of these functions as a
+		 * closure */
 		void *arg);
 
 #endif

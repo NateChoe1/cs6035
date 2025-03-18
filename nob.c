@@ -14,6 +14,7 @@
 int compile_object(const char *src, Nob_File_Paths *headers, Nob_File_Paths *objs);
 
 bool endswith(const char *base, const char *extension);
+bool startswith(const char *base, const char *start);
 
 /* equivalent to strdup, just more portable */
 char *clone(char *str);
@@ -22,7 +23,11 @@ char *append(const char *s1, const char *s2);
 
 int main(int argc, char **argv) {
 	size_t i;
+	char *target;
+
 	NOB_GO_REBUILD_URSELF(argc, argv);
+
+	target = (argc >= 2) ? argv[1] : "prod";
 
 	if (!nob_mkdir_if_not_exists(OBJ_DIR)) {
 		return 1;
@@ -38,10 +43,12 @@ int main(int argc, char **argv) {
 	for (i = 0; i < srcdir.count; ++i) {
 		if (endswith(srcdir.items[i], ".h")) {
 			nob_da_append(&headers, append(SRC_DIR, srcdir.items[i]));
-		} else if (endswith(srcdir.items[i], ".c")) {
+		} else if (endswith(srcdir.items[i], ".c") &&
+				!startswith(srcdir.items[i], "main_")) {
 			nob_da_append(&cfiles, srcdir.items[i]);
 		}
 	}
+	nob_da_append(&cfiles, append(append("main_", target), ".c"));
 
 	/* the final item in headers is the source file */
 	nob_da_append(&headers, "");
@@ -131,6 +138,11 @@ end2:
 end1:
 	free(srcpath);
 	return result;
+}
+
+bool startswith(const char *base, const char *start) {
+	size_t prefix = strspn(base, start);
+	return start[prefix] == '\0';
 }
 
 char *append(const char *s1, const char *s2) {

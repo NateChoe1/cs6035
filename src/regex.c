@@ -21,6 +21,13 @@ static void followups(struct state *state, void *arg, char *ret);
 
 static long state_accepted(struct state *state, void *arg);
 
+static struct dfa_builder builder = {
+	enclose,
+	transition,
+	followups,
+	state_accepted,
+};
+
 struct regex *regex_compile(struct arena *arena, char *pattern) {
 	struct dfa *ret;
 	struct arena *ta;
@@ -36,12 +43,7 @@ struct regex *regex_compile(struct arena *arena, char *pattern) {
 	initial_state = state_new(arena);
 	state_append(initial_state, nfa->start_node);
 
-	ret = dfa_new(arena, NUM_CHARS, 0, initial_state,
-			enclose,
-			transition,
-			followups,
-			state_accepted,
-			nfa);
+	ret = dfa_new(arena, NUM_CHARS, 0, initial_state, &builder, nfa);
 
 end:
 	arena_free(ta);
