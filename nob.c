@@ -62,7 +62,26 @@ int main(int argc, char **argv) {
 	if (!nob_mkdir_if_not_exists(EXE_DIR)) {
 		return 1;
 	}
-	if (!nob_needs_rebuild(EXE_PATH, objs.items, objs.count)) {
+
+	bool needs_rebuild = false;
+	needs_rebuild = nob_needs_rebuild(EXE_PATH, objs.items, objs.count);
+
+	Nob_String_Builder cur_target = {0};
+	char *tpath = OBJ_DIR "cur_target";
+	if (nob_file_exists(tpath) &&
+			!nob_read_entire_file(tpath, &cur_target)) {
+		return 1;
+	}
+	nob_sb_append_null(&cur_target);
+	if (strcmp(cur_target.items, target)) {
+		needs_rebuild = 1;
+		if (!nob_write_entire_file(tpath,
+					target, strlen(target))) {
+			return 1;
+		}
+	}
+
+	if (!needs_rebuild) {
 		goto skip_link;
 	}
 	Nob_Cmd link = {0};
