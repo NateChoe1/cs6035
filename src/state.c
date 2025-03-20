@@ -47,9 +47,7 @@ void state_join(struct state *base, struct state *additions) {
 		}
 		n = arena_malloc(base->arena, sizeof(*n));
 		n->value = i->value;
-		if (*p != NULL) {
-			n->next = (*p)->next;
-		}
+		n->next = (*p != NULL) ? (*p)->next : NULL;
 		*p = n;
 skip:
 		i = i->next;
