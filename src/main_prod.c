@@ -5,11 +5,46 @@
 #define a 0l
 #define b 1l
 #define END 2l
-#define S1 3l
-#define X 4l
+#define X 3l
+#define S1 4l
 #define S 5l
 
 static void print_table(struct lr_table *table, char **tokens);
+
+/* 0:	S -> . S1 $	a
+ * 1:	S -> S1 . $	a
+ * 2:	S -> S1 $ .	a
+ * 3:	S -> . S1 $	b
+ * 4:	S -> S1 . $	b
+ * 5:	S -> S1 $ .	b
+ * 6:	S -> . S1 $	$
+ * 7:	S -> S1 . $	$
+ * 8:	S -> S1 $ .	$
+ * 9:	S1 -> . X X	a
+ * 10:	S1 -> X . X	a
+ * 11:	S1 -> X X .	a
+ * 12:	S1 -> . X X	b
+ * 13:	S1 -> X . X	b
+ * 14:	S1 -> X X .	b
+ * 15:	S1 -> . X X	$
+ * 16:	S1 -> X . X	$
+ * 17:	S1 -> X X .	$
+ * 18:	X -> . a X	a
+ * 19:	X -> a . X	a
+ * 20:	X -> a X .	a
+ * 21:	X -> . a X	b
+ * 22:	X -> a . X	b
+ * 23:	X -> a X .	b
+ * 24:	X -> . a X	$
+ * 25:	X -> a . X	$
+ * 26:	X -> a X .	$
+ * 27:	X -> . b	a
+ * 28:	X -> b .	a
+ * 29:	X -> . b	b
+ * 30:	X -> b .	b
+ * 31:	X -> . b	$
+ * 32:	X -> b .	$
+ * */
 
 int main(void) {
 	struct arena *ga, *ta;
@@ -19,9 +54,9 @@ int main(void) {
 		"a",
 		"b",
 		"$",
-		"S",
 		"X",
 		"S'",
+		"S",
 	};
 
 	ga = arena_new();

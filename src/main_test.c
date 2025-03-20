@@ -58,7 +58,7 @@ static void test_lalr(void) {
 	 * reductions by 0 are just accept states and transitions to 0 would
 	 * imply that the start token isn't really the start token.
 	 *
-	 * state	a	b	$	S	X	S'	
+state	a	b	$	S	X	S'	
 0	T/1	T/2	ERROR	T/3	T/4	ERROR	
 1	T/1	T/2	ERROR	ERROR	T/5	ERROR	
 2	R/3	R/3	R/3	ERROR	ERROR	ERROR	
@@ -74,7 +74,7 @@ static void test_lalr(void) {
 		{-3, -3, -3, error, error, error},
 		{error, error, 6, error, error, error},
 		{1, 2, error, error, 7, error},
-		{-2, -2, error, error, error, error},
+		{-2, -2, -2, error, error, error},
 		{accept, accept, accept, accept, accept},
 		{error, error, -1, error, error, error},
 	};

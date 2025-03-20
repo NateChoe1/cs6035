@@ -7,7 +7,7 @@ static long add_state(struct dfa *dfa);
 static void explore_state(struct dfa *dfa,
 		struct arena *arena, struct arena *ss, int save_states,
 		struct state *state, struct state_list *new_states,
-		struct state_map *seen,
+		struct state_map *seen, struct state_map *variations,
 		struct dfa_builder *builder,
 		void *arg,
 		char *followups);
@@ -21,8 +21,8 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 		struct dfa_builder *builder,
 		void *arg) {
 	struct arena *ss, *as, *at1, *at2;
-	struct state_map *state_map;
-	struct state_list *unchecked, *new;
+	struct state_map *state_map, *variations;
+	struct state_list *new, *unchecked;
 	struct state *simplified;
 	struct dfa *ret;
 	size_t i;
@@ -47,6 +47,7 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 	at1 = arena_new();
 
 	state_map = state_map_new(ss);
+	variations = state_map_new(ss);
 	unchecked = state_list_new(at1);
 
 	builder->enclose(initial_state, arg);
@@ -67,7 +68,7 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 		for (i = 0; i < unchecked->len; ++i) {
 			explore_state(ret, as, ss, save_states,
 					unchecked->states[i], new, state_map,
-					builder, arg, fbuf);
+					variations, builder, arg, fbuf);
 		}
 
 		arena_free(at1);
@@ -87,7 +88,7 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 static void explore_state(struct dfa *dfa,
 		struct arena *arena, struct arena *ss, int save_states,
 		struct state *state, struct state_list *new_states,
-		struct state_map *seen,
+		struct state_map *seen, struct state_map *variations,
 		struct dfa_builder *builder,
 		void *arg,
 		char *followups) {
@@ -111,18 +112,23 @@ static void explore_state(struct dfa *dfa,
 		if (new_state < 0) {
 			goto make_new_state;
 		}
+		if (state_map_get(variations, new) == -1) {
+			state_map_put(variations, new, 0);
+			goto new_variation;
+		}
 		if (dfa->nodes[old_state].links[c] == -1) {
 			goto existing_state;
 		}
 		continue;
 make_new_state:
 		new_state = add_state(dfa);
-		state_list_add(new_states, new);
 		state_map_put(seen, simplified, new_state);
 		if (save_states) {
 			dfa->nodes[new_state].state = new;
 		}
 		dfa->nodes[new_state].r = builder->get_r(new, arg);
+new_variation:
+		state_list_add(new_states, new);
 existing_state:
 		dfa->nodes[old_state].links[c] = new_state;
 		if (save_states) {
