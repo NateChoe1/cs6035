@@ -118,7 +118,7 @@ static void explore_state(struct dfa *dfa,
 make_new_state:
 		new_state = add_state(dfa);
 		state_list_add(new_states, new);
-		state_map_put(seen, new, new_state);
+		state_map_put(seen, simplified, new_state);
 		if (save_states) {
 			dfa->nodes[new_state].state = new;
 		}

@@ -40,13 +40,14 @@ static void enclose(struct state *state, void *arg);
 static struct state *step(struct arena *arena, struct state *state, long item,
 		void *arg);
 static void followups(struct state *state, void *arg, char *ret);
+static struct state *simplify(struct arena *, struct state *, void *arg);
 
 static struct dfa_builder builder = {
 	enclose,
 	step,
 	followups,
 	NULL,
-	NULL,
+	simplify,
 };
 
 static void enclose_item(long value,
@@ -488,4 +489,25 @@ skip:
 	}
 
 	table->table[state] = row;
+}
+
+static struct state *simplify(struct arena *arena, struct state *state,
+		void *arg) {
+	struct item_list *items;
+	struct state *ret;
+	struct state_item *iter;
+	struct item *item;
+
+	items = (struct item_list *) arg;
+	ret = state_new(arena);
+
+	iter = state->head;
+	while (iter != NULL) {
+		item = &items->items[iter->value];
+		state_append(ret, item->rule->ii + item->position);
+
+		iter = iter->next;
+	}
+
+	return ret;
 }
