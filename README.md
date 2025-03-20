@@ -27,3 +27,29 @@ compile this program, just run these commands:
     cc nob.c -o nob
     ./nob test
     ./build/cc
+
+## Yex
+
+Yex is a lexer. It's pretty dumb, to invoke it just run
+
+    ./dist/yex input.yex output.c
+
+The generated C code relies on `<yex.h>`, as defined in `dist/yex.h`. The input
+file format is like this:
+
+    #include <stdio.h>
+    #define YEX_NAME yylex
+    /* other header stuff */
+    %%
+    regex 1
+    puts("result 1");
+    (regex 2)*
+    puts("result 2");
+
+This is extremely stupid, and I will absolutely improve this later.
+
+The outputted C code is guaranteed to define this function:
+
+    int YEX_NAME(struct yex_buffer *buffer);
+
+This function may modify the contents of `buffer->parsed`.
