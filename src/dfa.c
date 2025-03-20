@@ -5,7 +5,7 @@
 static long add_state(struct dfa *dfa);
 
 static void explore_state(struct dfa *dfa,
-		struct arena *arena, int save_states,
+		struct arena *arena, struct arena *ss, int save_states,
 		struct state *state, struct state_list *new_states,
 		struct state_map *seen,
 		struct dfa_builder *builder,
@@ -13,6 +13,8 @@ static void explore_state(struct dfa *dfa,
 		char *followups);
 
 static long get_r_def(struct state *state, void *arg);
+static struct state * simplify_def(struct arena *arena, struct state *state,
+		void *arg);
 
 struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 		struct state *initial_state,
@@ -21,12 +23,16 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 	struct arena *ss, *as, *at1, *at2;
 	struct state_map *state_map;
 	struct state_list *unchecked, *new;
+	struct state *simplified;
 	struct dfa *ret;
 	size_t i;
 	char *fbuf;
 
 	if (builder->get_r == NULL) {
 		builder->get_r = get_r_def;
+	}
+	if (builder->simplify == NULL) {
+		builder->simplify = simplify_def;
 	}
 
 	ret = arena_malloc(arena, sizeof(*ret));
@@ -44,7 +50,8 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 	unchecked = state_list_new(at1);
 
 	builder->enclose(initial_state, arg);
-	state_map_put(state_map, initial_state, add_state(ret));
+	simplified = builder->simplify(ss, initial_state, arg);
+	state_map_put(state_map, simplified, add_state(ret));
 	if (save_states) {
 		ret->nodes[0].state = initial_state;
 	}
@@ -58,7 +65,7 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 		new = state_list_new(at2);
 
 		for (i = 0; i < unchecked->len; ++i) {
-			explore_state(ret, as, save_states,
+			explore_state(ret, as, ss, save_states,
 					unchecked->states[i], new, state_map,
 					builder, arg, fbuf);
 		}
@@ -78,17 +85,18 @@ struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,
 }
 
 static void explore_state(struct dfa *dfa,
-		struct arena *arena, int save_states,
+		struct arena *arena, struct arena *ss, int save_states,
 		struct state *state, struct state_list *new_states,
 		struct state_map *seen,
 		struct dfa_builder *builder,
 		void *arg,
 		char *followups) {
-	struct state *new;
+	struct state *simplified, *new;
 	long c;
 	long old_state, new_state;
 
-	old_state = state_map_get(seen, state);
+	simplified = builder->simplify(ss, state, arg);
+	old_state = state_map_get(seen, simplified);
 	builder->followups(state, arg, followups);
 
 	for (c = 0; c < dfa->num_items; ++c) {
@@ -98,7 +106,8 @@ static void explore_state(struct dfa *dfa,
 
 		new = builder->step(arena, state, c, arg);
 		builder->enclose(new, arg);
-		new_state = state_map_get(seen, new);
+		simplified = builder->simplify(ss, new, arg);
+		new_state = state_map_get(seen, simplified);
 		if (new_state < 0) {
 			goto make_new_state;
 		}
@@ -116,6 +125,9 @@ make_new_state:
 		dfa->nodes[new_state].r = builder->get_r(new, arg);
 existing_state:
 		dfa->nodes[old_state].links[c] = new_state;
+		if (save_states) {
+			state_join(dfa->nodes[new_state].state, new);
+		}
 	}
 }
 
@@ -142,4 +154,11 @@ static long get_r_def(struct state *state, void *arg) {
 	(void) state;
 	(void) arg;
 	return 0;
+}
+
+static struct state * simplify_def(struct arena *arena, struct state *state,
+		void *arg) {
+	(void) arena;
+	(void) arg;
+	return state;
 }

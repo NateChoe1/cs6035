@@ -63,6 +63,9 @@ struct state_ordered {
 struct state *state_new(struct arena *arena);
 void state_append(struct state *state, long item);
 
+/* equivalent to base += additions */
+void state_join(struct state *base, struct state *additions);
+
 struct state_map *state_map_new(struct arena *arena);
 void state_map_put(struct state_map *set, struct state *state, long n);
 

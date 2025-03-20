@@ -26,6 +26,7 @@ static struct dfa_builder builder = {
 	transition,
 	followups,
 	state_accepted,
+	NULL,
 };
 
 struct regex *regex_compile(struct arena *arena, char *pattern) {

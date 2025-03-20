@@ -19,5 +19,11 @@ found with this command:
 This project uses [https://github.com/tsoding/nob.h](nob.h) to build itself. To
 compile this program, just run these commands:
 
-    cc nob.c -o nob
+    cc nob.c -o nob # you only have to run this once
     ./nob
+
+## Testing:
+
+    cc nob.c -o nob
+    ./nob test
+    ./build/cc

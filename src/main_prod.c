@@ -2,13 +2,12 @@
 
 #include "lr.h"
 
-#define INT	0l
-#define PLUS	1l
-#define TIMES	2l
-#define END	3l
-#define TERM	4l
-#define TERM1	5l
-#define START	6l
+#define a 0l
+#define b 1l
+#define END 2l
+#define S1 3l
+#define X 4l
+#define S 5l
 
 static void print_table(struct lr_table *table, char **tokens);
 
@@ -17,25 +16,23 @@ int main(void) {
 	struct lr_grammar *grammar;
 	struct lr_table *table;
 	char *token_names[] = {
-		"I",
-		"+",
-		"*",
+		"a",
+		"b",
 		"$",
-		"T",
-		"T1",
 		"S",
+		"X",
+		"S'",
 	};
 
 	ga = arena_new();
-	grammar = lr_grammar_new(ga, END+1, START+1);
-	lr_grammar_addv(grammar, TERM, TERM1, -1l);
-	lr_grammar_addv(grammar, TERM1, INT, -1l);
-	lr_grammar_addv(grammar, TERM, TERM, PLUS, TERM1, -1l);
-	lr_grammar_addv(grammar, TERM1, TERM1, TIMES, INT, -1l);
-	lr_grammar_addv(grammar, START, TERM, END, -1l);
+	grammar = lr_grammar_new(ga, END+1, S+1);
+	lr_grammar_addv(grammar, S, S1, END, -1l);
+	lr_grammar_addv(grammar, S1, X, X, -1l);
+	lr_grammar_addv(grammar, X, a, X, -1l);
+	lr_grammar_addv(grammar, X, b, -1l);
 
 	ta = arena_new();
-	table = lr_compile(ta, grammar, START);
+	table = lr_compile(ta, grammar, S);
 	arena_free(ga);
 
 	print_table(table, token_names);

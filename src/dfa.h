@@ -54,6 +54,11 @@ struct dfa_builder {
 	 * */
 	long (*get_r)(struct state *state, void *arg);
 
+	/* simplifies states such that any two states within the same
+	 * equivalence class are equal to each other
+	 *
+	 * if this is NULL, then we default to the identity function */
+	struct state *(*simplify)(struct arena *, struct state *, void *arg);
 };
 
 struct dfa *dfa_new(struct arena *arena, long num_items, int save_states,

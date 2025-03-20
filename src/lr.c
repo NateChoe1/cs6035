@@ -46,6 +46,7 @@ static struct dfa_builder builder = {
 	step,
 	followups,
 	NULL,
+	NULL,
 };
 
 static void enclose_item(long value,
@@ -410,7 +411,7 @@ static void enclose_anont(long token, long ahead, struct state *state,
 	grammar = items->grammar;
 	base = token * grammar->num_tokens;
 
-	rule = grammar->rules[ahead];
+	rule = grammar->rules[ahead - grammar->num_terminals];
 	while (rule != NULL) {
 		pair = base + rule->prod[0];
 		if (hashset_contains(visited, pair)) {
