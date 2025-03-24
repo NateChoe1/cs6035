@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "yex.h"
+#include "lacc.h"
 
 static char *basename(char *path);
 
@@ -17,6 +18,9 @@ int main(int argc, char **argv) {
 	prog = basename(argv[0]);
 	if (strcmp(prog, "yex") == 0) {
 		return yex_main(argc, argv);
+	}
+	if (strcmp(prog, "lacc") == 0) {
+		return lacc_main(argc, argv);
 	}
 	fprintf(stderr, "Unknown program name %s\n", prog);
 	return 1;

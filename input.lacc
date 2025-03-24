@@ -1,0 +1,35 @@
+#include <yex.h>
+#include "atoin.h"
+#define LACC_NAME yyparse
+#define LACC_CLOSURE struct yex_buffer *
+
+/*
+state	int	+	*	$	S	S0	START	
+0	T/1	ERROR	ERROR	ERROR	T/2	T/3	ERROR	
+1	ERROR	R/0	R/0	R/0	ERROR	ERROR	ERROR	
+2	ERROR	T/4	ERROR	T/5	ERROR	ERROR	ERROR	
+3	ERROR	R/2	T/6	R/2	ERROR	ERROR	ERROR	
+4	T/1	ERROR	ERROR	ERROR	ERROR	T/7	ERROR	
+5	ACCEPT
+6	T/8	ERROR	ERROR	ERROR	ERROR	ERROR	ERROR	
+7	ERROR	R/3	T/6	R/3	ERROR	ERROR	ERROR	
+8	ERROR	R/1	R/1	R/1	ERROR	ERROR	ERROR
+*/
+
+%%
+4 7
+lacc_v = atoin(lacc_closure->input + lacc_closure->t_start, lacc_closure->parsed - lacc_closure->t_start);
+;
+;
+;
+6 3
+5 0
+lacc_v = LACC_V(0);
+5 5 2 0
+lacc_v = LACC_V(0) * LACC_V(2);
+4 5
+lacc_v = LACC_V(0);
+4 4 1 5
+lacc_v = LACC_V(0) + LACC_V(2);
+6 4 3
+;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "dfa.h"
+#include "file.h"
 #include "regex.h"
 
 struct pattern_list {
@@ -10,10 +11,7 @@ struct pattern_list {
 	struct pattern_list *next;
 };
 
-static char *read_line(FILE *input, struct arena *arena);
 static struct pattern_list *read_patterns(FILE *input, struct arena *arena);
-static int write_header(FILE *input, FILE *output);
-static void swallow_line(FILE *input);
 static void write_autocode(FILE *output, struct pattern_list *patterns);
 static void transition_pattern(FILE *output, struct pattern_list *pattern);
 static void transition_state(FILE *output, struct dfa *dfa, int state, int id);
@@ -32,45 +30,20 @@ int yex_main(int argc, char **argv) {
 	input = fopen(argv[1], "r");
 	output = fopen(argv[2], "w");
 
-	if (write_header(input, output) != 0) {
+	if (file_copysection(input, output) != 0) {
+		fputs("Input file doesn't contain a header!\n", stderr);
+		fclose(input);
+		fclose(output);
 		return 1;
 	}
-	swallow_line(input);
 	ra = arena_new();
 	patterns = read_patterns(input, ra);
 
 	write_autocode(output, patterns);
+
+	fclose(input);
+	fclose(output);
 	return 0;
-}
-
-static char *read_line(FILE *input, struct arena *arena) {
-	char *ret;
-	size_t len, alloc;
-	int c;
-
-	c = fgetc(input);
-	if (c == EOF) {
-		return NULL;
-	}
-	ungetc(c, input);
-
-	len = 0;
-	alloc = 80;
-	ret = arena_malloc(arena, alloc);
-	for (;;) {
-		if (alloc >= len) {
-			alloc *= 2;
-			ret = arena_realloc(ret, alloc);
-		}
-
-		c = fgetc(input);
-		if (c != '\n' && c != EOF) {
-			ret[len++] = c;
-			continue;
-		}
-		ret[len] = '\0';
-		return ret;
-	}
 }
 
 static struct pattern_list *read_patterns(FILE *input, struct arena *arena) {
@@ -84,8 +57,8 @@ static struct pattern_list *read_patterns(FILE *input, struct arena *arena) {
 	i = 0;
 
 	for (;;) {
-		pattern = read_line(input, tmp);
-		code = read_line(input, arena);
+		pattern = file_readline(input, tmp);
+		code = file_readline(input, arena);
 		if (pattern == NULL || code == NULL) {
 			break;
 		}
@@ -102,45 +75,15 @@ static struct pattern_list *read_patterns(FILE *input, struct arena *arena) {
 	return ret;
 }
 
-static int write_header(FILE *input, FILE *output) {
-	int c;
-
-	for (;;) {
-		c = fgetc(input);
-		if (c == EOF) {
-			fputs("Input doesn't contian a header!", stderr);
-			return 1;
-		}
-		if (c != '%') {
-			goto norm;
-		}
-		c = fgetc(input);
-		if (c != '%') {
-			ungetc(c, input);
-			goto norm;
-		}
-		return 0;
-norm:
-		fputc(c, output);
-	}
-}
-
-static void swallow_line(FILE *input) {
-	int c;
-	for (;;) {
-		c = fgetc(input);
-		if (c == '\n' || c == EOF) {
-			return;
-		}
-	}
-}
-
 /* it is possible to do all of this parsing in O(n) time by unifying all of our
  * dfas into a single dfa, but that would use a ridiculous amount of memory. */
 static void write_autocode(FILE *output, struct pattern_list *patterns) {
 	struct pattern_list *iter;
 
 	fputs("#include <yex.h>\n", output);
+	fputs("#ifndef YEX_NAME\n", output);
+	fputs("#define YEX_NAME yex_read\n", output);
+	fputs("#endif\n", output);
 	fputs("int YEX_NAME(struct yex_buffer *buff) {\n", output);
 
 	iter = patterns;
@@ -155,6 +98,8 @@ static void write_autocode(FILE *output, struct pattern_list *patterns) {
 
 	fputs("if (buff->parsed == buff->length) { return YEX_EOF; }\n",
 			output);
+
+	fputs("buff->t_start = buff->parsed;\n", output);
 
 	fputs("for (i = buff->parsed; i < buff->length; ++i) {\n", output);
 	fputs(  "match_possible = 0;\n", output);

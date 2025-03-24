@@ -1,0 +1,11 @@
+#include <stdio.h>
+#define YEX_NAME yylex
+%%
+[0-9]*
+return 0;
++
+return 1;
+*
+return 2;
+ 
+;

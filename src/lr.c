@@ -158,6 +158,7 @@ struct lr_table *lr_compile(struct arena *arena,
 	ret = arena_malloc(arena, sizeof(*ret));
 	ret->arena = arena;
 	ret->num_states = dfa->num_nodes;
+	ret->num_terminals = grammar->num_terminals;
 	ret->num_tokens = grammar->num_tokens;
 	ret->table = arena_malloc(arena, ret->num_states * sizeof(*ret->table));
 
