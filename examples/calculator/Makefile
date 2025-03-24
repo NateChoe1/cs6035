@@ -1,5 +1,5 @@
 calculator: lacc.c yex.c main.c atoin.h
-	$(CC) lacc.c yex.c main.c -I../../dist -o $@
+	$(CC) -ansi -Wall -Wextra -Wpedantic -Werror lacc.c yex.c main.c -I../../dist -o $@
 
 lacc.c: input.lacc ../../dist/lacc
 	../../dist/lacc $< $@
