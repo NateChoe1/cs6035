@@ -8,13 +8,17 @@ struct pattern_list {
 	struct dfa *regex;
 	char *code;
 	int id;
+	int greedy;
 	struct pattern_list *next;
 };
 
 static struct pattern_list *read_patterns(FILE *input, struct arena *arena);
 static void write_autocode(FILE *output, struct pattern_list *patterns);
 static void transition_pattern(FILE *output, struct pattern_list *pattern);
-static void transition_state(FILE *output, struct dfa *dfa, int state, int id);
+static void transition_state(FILE *output, struct dfa *dfa, int state,
+		int id, int is_greedy);
+void print_match_code(FILE *output, struct dfa *dfa, int dst,
+		int id, int is_greedy);
 static void run_actions(FILE *output, struct pattern_list *pattern);
 
 int yex_main(int argc, char **argv) {
@@ -58,12 +62,16 @@ static struct pattern_list *read_patterns(FILE *input, struct arena *arena) {
 
 	for (;;) {
 		pattern = file_readline(input, tmp);
+		if (pattern == NULL || pattern[0] == '\0') {
+			break;
+		}
 		code = file_readline(input, arena);
-		if (pattern == NULL || code == NULL) {
+		if (code == NULL) {
 			break;
 		}
 		cur = arena_malloc(arena, sizeof(*cur));
-		cur->regex = (struct dfa *) regex_compile(arena, pattern);
+		cur->regex = (struct dfa *) regex_compile(arena, pattern+1);
+		cur->greedy = pattern[0] == '!';
 		cur->code = code;
 		cur->next = ret;
 		cur->id = i++;
@@ -133,14 +141,15 @@ static void transition_pattern(FILE *output, struct pattern_list *pattern) {
 
 	for (i = 0; i < dfa->num_nodes; ++i) {
 		fprintf(output, "case %ld:\n", i);
-		transition_state(output, dfa, i, id);
+		transition_state(output, dfa, i, id, pattern->greedy);
 		fputs("break;\n", output);
 	}
 
 	fputs("}\n", output);
 }
 
-static void transition_state(FILE *output, struct dfa *dfa, int state, int id) {
+static void transition_state(FILE *output, struct dfa *dfa, int state,
+		int id, int is_greedy) {
 	long i;
 
 	fputs("switch (c) {\n", output);
@@ -150,18 +159,23 @@ static void transition_state(FILE *output, struct dfa *dfa, int state, int id) {
 		}
 		fprintf(output, "case %ld:", i);
 		fputs("match_possible=1;", output);
-		if (dfa->nodes[dfa->nodes[state].links[i]].r) {
-			fprintf(output, "last_regex = %d;\n", id);
-			fputs("last_match = i+1;\n", output);
-			fputs("match_possible = 1;\n", output);
-			fprintf(output, "last_regex = %d;\n", id);
-		}
-		fprintf(output, "state_%d = %dl;\n",
-				id, dfa->nodes[state].links[i]);
+		print_match_code(output, dfa, dfa->nodes[state].links[i],
+				id, is_greedy);
 		fputs("break;\n", output);
 	}
 	fprintf(output, "default: state_%d = -1l; break;\n", id);
 	fputs("}\n", output);
+}
+
+void print_match_code(FILE *output, struct dfa *dfa, int dst,
+		int id, int is_greedy) {
+	if (!dfa->nodes[dst].r) {
+		return;
+	}
+	fprintf(output, "last_regex = %d;\n", id);
+	fputs("last_match = i+1;\n", output);
+	fprintf(output, "last_regex = %d;\n", id);
+	fprintf(output, "state_%d = %dl;\n", id, is_greedy ? dst : -1);
 }
 
 static void run_actions(FILE *output, struct pattern_list *pattern) {

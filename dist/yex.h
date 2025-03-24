@@ -3,6 +3,7 @@
 
 struct yex_buffer {
 	char *input;
+	unsigned long t_start;
 	unsigned long parsed; /* should be initialized to 0 */
 	unsigned long length;
 };

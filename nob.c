@@ -145,7 +145,7 @@ int compile_object(const char *src, Nob_File_Paths *headers, Nob_File_Paths *obj
 	}
 
 	Nob_Cmd cmd = {0};
-	nob_cmd_append(&cmd, "cc", CFLAGS, "-c", "-o", obj_path, srcpath);
+	nob_cmd_append(&cmd, "cc", CFLAGS, "-Idist", "-c", "-o", obj_path, srcpath);
 	if (!nob_cmd_run_sync(cmd)) {
 		result = 1;
 		goto end2;
