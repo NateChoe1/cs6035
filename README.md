@@ -95,15 +95,15 @@ The header is included at the top of the generated C file
 (note that the `%%` is not included, and simply indicates the end of the
 header.)
 
-Lines 3 gives metadata about the grammar
+Line 3 gives metadata about the grammar
 
     4 7
 
-indicates that this grammar contains 5 tokens in total, 3 of which are
-terminals. This means that tokens 0, 1, and 2 are terminals, and tokens 3 and 4
-are nonterminals. This specific grammar is an expression parser which can handle
-addition and multiplication with operator precedence. Some more helpful names
-for the tokens might be these:
+indicates that this grammar contains 7 tokens in total, 4 of which are
+terminals. This means that tokens 0, 1, 2, and 3 are terminals, and tokens 4, 5,
+and 6 are nonterminals. This specific grammar is an expression parser which can
+handle addition and multiplication with operator precedence. Some more helpful
+names for the tokens might be these:
 
     number     new name
     0          integer
