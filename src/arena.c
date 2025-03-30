@@ -18,11 +18,7 @@ struct arena *arena_new(void) {
 
 void *arena_malloc(struct arena *arena, size_t size) {
 	struct arena *region;
-	region = malloc(size + sizeof(*region));
-	if (region == NULL) {
-		fputs("arena_malloc() failed\n", stderr);
-		exit(EXIT_FAILURE);
-	}
+	region = xmalloc(size + sizeof(*region));
 	region->prev = arena;
 	region->next = arena->next;
 	if (arena->next != NULL) {
@@ -35,11 +31,7 @@ void *arena_malloc(struct arena *arena, size_t size) {
 void *arena_realloc(void *ptr, size_t size) {
 	struct arena *region;
 	region = (struct arena *) ((char *) ptr - sizeof(*region));
-	region = realloc(region, size + sizeof(*region));
-	if (region == NULL) {
-		fputs("arena_realloc() failed\n", stderr);
-		exit(EXIT_FAILURE);
-	}
+	region = xrealloc(region, size + sizeof(*region));
 	if (region->prev != NULL) {
 		region->prev->next = region;
 	}
