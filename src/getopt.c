@@ -4,9 +4,12 @@
 #include "getopt.h"
 
 char *optarg;
+
+/* TODO: actually use opterr */
 int opterr = 1;
+
 int optind = 1;
-int optopt = 0;
+int optopt;
 
 static int argidx = 1;
 
@@ -86,4 +89,10 @@ int getopt(int argc, char **argv, const char *optstring) {
 
 error:
 	return '?';
+}
+
+void getopt_reset(void) {
+	opterr = 1;
+	optind = 1;
+	argidx = 1;
 }

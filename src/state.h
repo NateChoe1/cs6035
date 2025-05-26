@@ -2,7 +2,7 @@
 #define STATE_H
 
 #include "arena.h"
-#include "hashmap.h"
+#include "longmap.h"
 
 /* a state is a set of items. this notion of a state comes up a lot in parsing;
  * for example to convert an nfa to a dfa each state in the dfa becomes a set of
@@ -37,7 +37,7 @@ struct state_map_node {
 	long n;
 
 	/* maps items to struct state_map_node * pointers */
-	struct hashmap *children;
+	struct longmap *children;
 };
 
 struct state_map {

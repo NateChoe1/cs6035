@@ -6,11 +6,12 @@
 static size_t next_bucket(size_t n);
 static void reshuffle(struct hashmap *hashmap);
 static void insert(struct hashmap *hashmap, struct hashmap_node *node);
-struct hashmap_node **get(struct hashmap *hashmap, long key);
+struct hashmap_node **get(struct hashmap *hashmap, void *key);
 
 #define INITIAL_BUCKETS 31
 
-struct hashmap *hashmap_new(struct arena *arena) {
+struct hashmap *hashmap_new(struct arena *arena,
+		hashmap_hash hash, hashmap_eq equals) {
 	struct hashmap *ret;
 	size_t i;
 
@@ -23,10 +24,12 @@ struct hashmap *hashmap_new(struct arena *arena) {
 		ret->buckets[i] = NULL;
 	}
 	ret->num_items = 0;
+	ret->hash = hash;
+	ret->equals = equals;
 	return ret;
 }
 
-void hashmap_put(struct hashmap *hashmap, long key, void *value) {
+void hashmap_put(struct hashmap *hashmap, void *key, void *value) {
 	struct hashmap_node *node;
 
 	node = *get(hashmap, key);
@@ -45,7 +48,7 @@ void hashmap_put(struct hashmap *hashmap, long key, void *value) {
 	insert(hashmap, node);
 }
 
-void *hashmap_get(struct hashmap *hashmap, long key) {
+void *hashmap_get(struct hashmap *hashmap, void *key) {
 	struct hashmap_node *node;
 
 	node = *get(hashmap, key);
@@ -55,7 +58,7 @@ void *hashmap_get(struct hashmap *hashmap, long key) {
 	return node->value;
 }
 
-void hashmap_remove(struct hashmap *hashmap, long key) {
+void hashmap_remove(struct hashmap *hashmap, void *key) {
 	struct hashmap_node **node, *old;
 	node = get(hashmap, key);
 	if (*node == NULL) {
@@ -108,22 +111,22 @@ static void reshuffle(struct hashmap *hashmap) {
 static void insert(struct hashmap *hashmap, struct hashmap_node *node) {
 	unsigned long key_u;
 	size_t idx;
-	key_u = (unsigned long) node->key;
+	key_u = (unsigned long) hashmap->hash(node->key);
 	idx = key_u % hashmap->num_buckets;
 	node->next = hashmap->buckets[idx];
 	hashmap->buckets[idx] = node;
 }
 
-struct hashmap_node **get(struct hashmap *hashmap, long key) {
+struct hashmap_node **get(struct hashmap *hashmap, void *key) {
 	unsigned long key_u;
 	size_t idx;
 	struct hashmap_node **iter;
 
-	key_u = (unsigned long) key;
+	key_u = (unsigned long) hashmap->hash(key);
 	idx = key_u % hashmap->num_buckets;
 	iter = &hashmap->buckets[idx];
 	while (*iter != NULL) {
-		if ((*iter)->key == key) {
+		if (hashmap->equals((*iter)->key, key)) {
 			return iter;
 		}
 		iter = &(*iter)->next;
@@ -132,7 +135,7 @@ struct hashmap_node **get(struct hashmap *hashmap, long key) {
 }
 
 void hashmap_iter(struct hashmap *hashmap, void *closure,
-		void (*callback)(void *closure, long key, void *value)) {
+		void (*callback)(void *closure, void *key, void *value)) {
 	size_t i;
 	struct hashmap_node *iter;
 	for (i = 0; i < hashmap->num_buckets; ++i) {

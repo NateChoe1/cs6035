@@ -119,7 +119,7 @@ static struct state_map_node *new_node(struct arena *arena) {
 	struct state_map_node *ret;
 	ret = arena_malloc(arena, sizeof(*ret));
 	ret->n = -1;
-	ret->children = hashmap_new(arena);
+	ret->children = longmap_new(arena);
 	return ret;
 }
 
@@ -143,13 +143,13 @@ static struct state_map_node *find(struct state_map *map, struct state *state,
 static struct state_map_node *step(struct arena *arena,
 		struct state_map_node *node, long item, int create) {
 	struct state_map_node *ret;
-	ret = hashmap_get(node->children, item);
+	ret = longmap_get(node->children, item);
 	if (ret == NULL) {
 		if (!create) {
 			return NULL;
 		}
 		ret = new_node(arena);
-		hashmap_put(node->children, item, (void *) ret);
+		longmap_put(node->children, item, (void *) ret);
 	}
 	return ret;
 }

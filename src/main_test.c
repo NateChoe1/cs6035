@@ -6,12 +6,14 @@
 
 #include "lr_test.h"
 #include "regex_test.h"
+#include "getopt_test.h"
 
 static void summarize(void);
 
 int main() {
-	test_regex();
 	test_lr();
+	test_regex();
+	test_getopt();
 
 	summarize();
 	return 0;

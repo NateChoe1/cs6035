@@ -27,7 +27,7 @@ int yex_main(int argc, char **argv) {
 	struct pattern_list *patterns;
 
 	if (argc != 3) {
-		fprintf(stderr, "Usage: %s [input.yex] [output.c]\n", argv[0]);
+		fprintf(stderr, "Usage: %s [-t] [-n|-v] [file...]\n", argv[0]);
 		return 1;
 	}
 
