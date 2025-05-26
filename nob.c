@@ -15,11 +15,14 @@ int compile_object(const char *src, Nob_File_Paths *headers, Nob_File_Paths *obj
 
 bool endswith(const char *base, const char *extension);
 bool startswith(const char *base, const char *start);
+bool contains(const char *str, const char c);
 
 /* equivalent to strdup, just more portable */
 char *clone(char *str);
 
 char *append(const char *s1, const char *s2);
+
+bool should_include(const char *filename, const char *target, const char *ext);
 
 int main(int argc, char **argv) {
 	size_t i;
@@ -41,14 +44,12 @@ int main(int argc, char **argv) {
 	nob_read_entire_dir(SRC_DIR, &srcdir);
 
 	for (i = 0; i < srcdir.count; ++i) {
-		if (endswith(srcdir.items[i], ".h")) {
+		if (should_include(srcdir.items[i], target, ".h")) {
 			nob_da_append(&headers, append(SRC_DIR, srcdir.items[i]));
-		} else if (endswith(srcdir.items[i], ".c") &&
-				!startswith(srcdir.items[i], "main_")) {
+		} else if (should_include(srcdir.items[i], target, ".c")) {
 			nob_da_append(&cfiles, srcdir.items[i]);
 		}
 	}
-	nob_da_append(&cfiles, append(append("main_", target), ".c"));
 
 	/* the final item in headers is the source file */
 	nob_da_append(&headers, "");
@@ -172,4 +173,26 @@ char *append(const char *s1, const char *s2) {
 	memcpy(ret, s1, l1);
 	memcpy(ret+l1, s2, l2+1);
 	return ret;
+}
+
+bool should_include(const char *filename, const char *target, const char *ext) {
+	if (!endswith(filename, ext)) {
+		return false;
+	}
+
+	char *suffix = strchr(filename, '_');
+
+	if (suffix == NULL) {
+		return true;
+	}
+
+	suffix += 1;
+
+	int i;
+	for (i = 0; target[i]; ++i) {
+		if (suffix[i] != target[i]) {
+			return false;
+		}
+	}
+	return strcmp(suffix + i, ext) == 0;
 }
