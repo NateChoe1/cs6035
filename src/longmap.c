@@ -1,8 +1,8 @@
 #include "longmap.h"
 
-static void callback(void *closure, void *key, void *value);
-static long hash(void *ptr);
-static int eq(void *ptr1, void *ptr2);
+static void callback(void *closure, const void *key, void *value);
+static long hash(const void *ptr);
+static int eq(const void *ptr1, const void *ptr2);
 
 struct closure {
 	void (*callback)(void *closure, long key, void *value);
@@ -33,16 +33,16 @@ void longmap_iter(struct longmap *longmap, void *closure,
 	hashmap_iter((struct hashmap *) longmap, &encapsulated, callback);
 }
 
-static void callback(void *closure, void *key, void *value) {
+static void callback(void *closure, const void *key, void *value) {
 	struct closure *encapsulated;
 	encapsulated = closure;
 	encapsulated->callback(encapsulated->closure, (long) key, value);
 }
 
-static long hash(void *ptr) {
+static long hash(const void *ptr) {
 	return (long) ptr;
 }
 
-static int eq(void *ptr1, void *ptr2) {
+static int eq(const void *ptr1, const void *ptr2) {
 	return ptr1 == ptr2;
 }
