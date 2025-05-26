@@ -3,7 +3,9 @@
 
 #include "arena.h"
 
-/* hashsets are just hashmaps with a different name for type safety  */
+/* TODO: make this type more generic */
+
+/* hashsets are just longmaps with a different name for type safety  */
 struct hashset;
 
 struct hashset *hashset_new(struct arena *arena);
