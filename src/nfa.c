@@ -31,6 +31,21 @@ static long compile_cset(struct nfa *nfa, char *string, long len,
 static long compile_cset_section(struct nfa *nfa, long start, long end,
 		char *string, long len);
 
+/* compile_cset helper function, compiles a character class (i.e. [:alnum:]) */
+static long compile_cclass(struct nfa *nfa, long start, long end,
+		char *string, long len);
+
+/* compile_cclass helper function, compiles an expanded character class (i.e.
+ * [:xdigit:] would expand to "0123456789abcdefABCDEF" */
+static void compile_cclass_expanded(struct nfa *nfa, long start, long end,
+		char *members);
+
+/* compile_cclass helper function, checks if a string starts with a character
+ * class and returns the length of the match. for example, "[:alnum:]$", "alnum"
+ * would return 9, because strlen("[:alnum:]") == 9. if there is no match, this
+ * function returns 0 */
+static long class_matches(char *s, char *name, long len);
+
 /* compile_cset helper function, compiles a cset range. for example, for the
  * range [a-z], we call compile_cset_range(nfa, start, end, 'a', 'z')
  *
@@ -226,8 +241,13 @@ static long compile_cset(struct nfa *nfa, char *string, long len,
 	*rs = new_node(nfa);
 	*re = new_node(nfa);
 
+	/* handle character classes like [:alnum:] */
+	if (len >= 4 && strchr("=:.", string[1]) != NULL) {
+		return compile_cclass(nfa, *rs, *re, string, len);
+	}
+
 	for (i = 1; i < len; ++i) {
-		if (string[i] == ']') {
+		if (i > 1 && string[i] == ']') {
 			return i+1;
 		}
 		d = compile_cset_section(nfa, *rs, *re, string+i, len-i);
@@ -260,6 +280,129 @@ static long compile_cset_section(struct nfa *nfa, long start, long end,
 know_char:
 	add_path(nfa, start, end, ch);
 	return r;
+}
+
+static long compile_cclass(struct nfa *nfa, long start, long end,
+		char *string, long len) {
+	int mlen;
+
+	if ((mlen = class_matches(string, "alnum", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"abcdefghijklmnopqrstuvwxyz"
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+				"012345789");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "alpha", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"abcdefghijklmnopqrstuvwxyz"
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "blank", len))) {
+		compile_cclass_expanded(nfa, start, end, " \t");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "cntrl", len))) {
+		/* according to posix, there are no characters that are required
+		 * to be in the "cntrl" character class, only characters that
+		 * are forbidden from being in it. to remain as agnostic as
+		 * possible, i'm declaring that there are no characters in the
+		 * cntrl class.
+		 *
+		 * this same argument could technically also apply to the
+		 * "punct" class as well, but the "cntrl" class feels much less
+		 * important to me than the "punct" class from a regular
+		 * expressions standpoint.
+		 *
+		 * https://pubs.opengroup.org/onlinepubs/7908799/xbd/locale.html
+		 * */
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "digit", len))) {
+		compile_cclass_expanded(nfa, start, end, "0123456789");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "graph", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"abcdefghijklmnopqrstuvwxyz"
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+				"0123456789"
+				"|\"#$%&'()*+,-./<=>?@[\\]^_`{|}~");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "lower", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"abcdefghijklmnopqrstuvwxyz");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "print", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"abcdefghijklmnopqrstuvwxyz"
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+				"0123456789"
+				"|\"#$%&'()*+,-./<=>?@[\\]^_`{|}~"
+				" ");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "punct", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"|\"#$%&'()*+,-./<=>?@[\\]^_`{|}~");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "space", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				" \t");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "upper", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+		return mlen;
+	}
+
+	if ((mlen = class_matches(string, "xdigit", len))) {
+		compile_cclass_expanded(nfa, start, end,
+				"0123456789abcdefABCDEF");
+		return mlen;
+	}
+
+	return -1;
+}
+
+static void compile_cclass_expanded(struct nfa *nfa, long start, long end,
+		char *members) {
+	while (*members) {
+		add_path(nfa, start, end, *members);
+		++members;
+	}
+}
+
+static long class_matches(char *s, char *name, long len) {
+	long i;
+	char sep;
+
+	sep = s[1];
+	for (i = 0; name[i] && i + 4 < len; ++i) {
+		if (name[i] != s[i+2]) {
+			return 0;
+		}
+	}
+
+	if (s[i+2] == sep && s[i+3] == ']') {
+		return i+4;
+	}
+	return 0;
 }
 
 static int compile_cset_range(struct nfa *nfa, long start, long end,

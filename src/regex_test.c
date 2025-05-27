@@ -17,6 +17,11 @@ void test_regex(void) {
 	assert(regex_matches("cat|dog", "cat"));
 	assert(regex_matches("cat|dog", "dog"));
 	assert(!regex_matches("cat|dog", "bug"));
+	assert(regex_matches("[:alnum:]*", "abcd1234"));
+	assert(!regex_matches("[:alnum:]*", "hello."));
+	assert(regex_matches("[.xdigit.]*", "abcd1234"));
+	assert(!regex_matches("[=xdigit=]*", "zzz"));
+	assert(!regex_matches("[!xdigit!]*", "abcd1234"));
 }
 
 static int regex_matches(char *regex, char *str) {
