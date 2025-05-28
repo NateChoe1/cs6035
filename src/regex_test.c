@@ -28,6 +28,19 @@ void test_regex(void) {
 	assert(regex_matches("(ab*)*", "abbbabbbaabbb"));
 	assert(regex_matches("a+b", "aaab"));
 	assert(!regex_matches("a+b", "b"));
+
+	assert(!regex_matches("a{2,4}", "a"));
+	assert(regex_matches("a{2,4}", "aa"));
+	assert(regex_matches("a{2,4}", "aaa"));
+	assert(regex_matches("a{2,4}", "aaaa"));
+	assert(!regex_matches("a{2,4}", "aaaaa"));
+
+	assert(regex_matches("(ab){2,4}", "ababab"));
+
+	assert(regex_matches("a{1,}", "a"));
+	assert(regex_matches("a{1,}", "aaa"));
+	assert(regex_matches("a{0,}", ""));
+	assert(!regex_matches("a{4,}", "aaa"));
 }
 
 static int regex_matches(char *regex, char *str) {

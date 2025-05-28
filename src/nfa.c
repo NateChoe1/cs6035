@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <string.h>
 
 #include "nfa.h"
@@ -63,6 +64,35 @@ static int compile_cset_range6(struct nfa *nfa, long start, long end,
 
 /* lowest level compile function, compiles a single character */
 static void compile_char(struct nfa *nfa, char c, long *s, long *e);
+
+/* compile_local helper function
+ *
+ * handles an interval given some known start bound and two nodes with a
+ * precompiled instance of the first regex
+ *
+ * returns the new bound, or -1 on error
+ *
+ * TODO: this interface feels super hacky
+ * */
+static long handle_interval(struct nfa *nfa, char *string, long bound, long len,
+		long *fs, long *fe);
+
+/* parses an interval expression, i.e. {5,7}
+ *
+ * low is set to the lower bound of the interval, high is set to the upper
+ * bound, or -1 for expressions like {1,}
+ *
+ * low is set to -1 on error
+ *
+ * returns the length of the match, or 0 on error
+ * */
+static long parse_interval(char *string, long len, long *low, long *high);
+
+/* reads a base 10 number from a string, or -1 if there is no number
+ *
+ * if mlen isn't NULL, the match len is stored in *mlen
+ * */
+static long read_num(char *string, long len, long *mlen);
 
 static long new_node(struct nfa *nfa);
 
@@ -156,8 +186,7 @@ static int compile_local(struct nfa *nfa, char *string, long len,
 		return 1;
 	}
 
-	if (bound < len &&
-			(string[bound] == '*' || string[bound] == '+')) {
+	if (bound < len && (string[bound] == '*' || string[bound] == '+')) {
 		ts = new_node(nfa);
 		te = new_node(nfa);
 		add_path(nfa, ts, fs, NFA_EMPTY_IDX);
@@ -170,6 +199,11 @@ static int compile_local(struct nfa *nfa, char *string, long len,
 		fs = ts;
 		fe = te;
 		++bound;
+	} else if (bound < len && string[bound] == '{') {
+		bound = handle_interval(nfa, string, bound, len, &fs, &fe);
+		if (bound == -1) {
+			return 1;
+		}
 	}
 
 	if (compile_local(nfa, string+bound, len-bound, &ts, &te)) {
@@ -479,6 +513,146 @@ static void compile_char(struct nfa *nfa, char c, long *s, long *e) {
 	*s = new_node(nfa);
 	*e = new_node(nfa);
 	add_path(nfa, *s, *e, (int) (unsigned char) c);
+}
+
+static long handle_interval(struct nfa *nfa, char *string, long bound, long len,
+		long *fs, long *fe) {
+	int fresh;
+	long low, high, ps, pe, n, i;
+
+	bound += parse_interval(string+bound, len-bound, &low, &high);
+	if (low == -1) {
+		goto error;
+	}
+
+	ps = *fs;
+	pe = *fe;
+
+	*fs = new_node(nfa);
+	*fe = new_node(nfa);
+	n = *fs;
+	fresh = 1;
+
+	/* a{5,[something]} => aaaaa [something] */
+	for (i = 0; i < low; ++i) {
+		if (!fresh) {
+			compile_first(nfa, string, len, &ps, &pe);
+		}
+
+		add_path(nfa, n, ps, NFA_EMPTY_IDX);
+		n = pe;
+
+		fresh = 0;
+	}
+
+	/* a{5,} => aaaaa+ */
+	if (high == -1) {
+		if (low == 0) {
+			add_path(nfa, *fs, ps, NFA_EMPTY_IDX);
+			add_path(nfa, *fs, *fe, NFA_EMPTY_IDX);
+		}
+		n = new_node(nfa);
+		add_path(nfa, pe, n, NFA_EMPTY_IDX);
+		add_path(nfa, n, ps, NFA_EMPTY_IDX);
+		add_path(nfa, n, *fe, NFA_EMPTY_IDX);
+		return bound;
+	}
+
+	/* {n,m} cases */
+	for (i = 0; i < high-low; ++i) {
+		if (!fresh) {
+			compile_first(nfa, string, len, &ps, &pe);
+		}
+
+		add_path(nfa, n, ps, NFA_EMPTY_IDX);
+		add_path(nfa, n, *fe, NFA_EMPTY_IDX);
+		n = pe;
+
+		fresh = 0;
+	}
+	add_path(nfa, pe, *fe, NFA_EMPTY_IDX);
+
+	return bound;
+error:
+	return -1;
+}
+
+static long parse_interval(char *string, long len, long *low, long *high) {
+	long i, diff;
+
+	/* read the initial '{' */
+	if (len < 1 || string[0] != '{') {
+		goto error;
+	}
+	i = 1;
+
+	/* read the lower bound */
+	*low = read_num(string+i, len-i, &diff);
+	if (*low == -1) {
+		goto error;
+	}
+	if ((i += diff) >= len) {
+		goto error;
+	}
+
+	/* handle {n} intevals */
+	if (string[i] == '}') {
+		*high = *low;
+		return i+1;
+	}
+
+	if (string[i] != ',') {
+		goto error;
+	}
+
+	if (++i >= len) {
+		goto error;
+	}
+
+	/* handle {n,} intervals */
+	if (string[i] == '}') {
+		*high = -1;
+		return i+1;
+	}
+
+	/* handle {n,m} intervals */
+	*high = read_num(string+i, len-i, &diff);
+	if (*high == -1) {
+		goto error;
+	}
+	if ((i += diff) >= len) {
+		goto error;
+	}
+	if (string[i] != '}') {
+		goto error;
+	}
+	return i+1;
+error:
+	*low = -1;
+	return 0;
+}
+
+static long read_num(char *string, long len, long *mlen) {
+	long i, ret;
+
+	if (len <= 0 || !isdigit(string[0])) {
+		return -1;
+	}
+
+	ret = 0;
+	for (i = 0; i < len && isdigit(string[i]); ++i) {
+		ret *= 10;
+
+		/* IMPL-DEF: assuming that digit characters - '0' gives us their
+		 * value*/
+		ret += string[i] - '0';
+	}
+
+	if (mlen != NULL) {
+		*mlen = i;
+	}
+
+	return ret;
 }
 
 static long new_node(struct nfa *nfa) {
