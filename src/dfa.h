@@ -14,7 +14,7 @@ struct dfa_node {
 
 	/* `links` is an index in `struct dfa.nodes`
 	 * len(links) == num_items */
-	int *links;
+	long *links;
 
 	/* if save_states == 0, then this is always NULL */
 	struct state *state;
@@ -25,7 +25,7 @@ struct dfa {
 	 * rejections */
 	struct dfa_node *nodes;
 	long num_nodes;
-	int num_items;
+	long num_items;
 
 	size_t alloc;
 	struct arena *arena;
