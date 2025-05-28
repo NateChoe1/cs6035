@@ -28,9 +28,8 @@ static long compile_group(struct nfa *nfa, char *string, long len,
 static long compile_cset(struct nfa *nfa, char *string, long len,
 		long *rs, long *re);
 
-/* compile_cset helper function, compiles a part of a cset */
-static long compile_cset_section(struct nfa *nfa, long start, long end,
-		char *string, long len);
+/* parse_cset helper function, parses a part of a cset */
+static long parse_cset_section(char *matches, char *string, long len);
 
 /* compile_cset helper function, compiles a character class (i.e. [:alnum:]) */
 static long compile_cclass(struct nfa *nfa, long start, long end,
@@ -50,16 +49,15 @@ static long class_matches(char *s, char *name, long len);
 static void compile_dot(struct nfa *nfa, long start, long end);
 
 /* compile_cset helper function, compiles a cset range. for example, for the
- * range [a-z], we call compile_cset_range(nfa, start, end, 'a', 'z')
+ * range [a-z], we call parse_cset_range(nfa, start, end, 'a', 'z')
  *
  * returns 0 on success, and non-zero on error*/
-static int compile_cset_range(struct nfa *nfa, long start, long end,
-		char low, char high);
+static int parse_cset_range(char *matches, char low, char high);
 
-/* compile_cset_range helper function, compiles a cset range given some
- * universe. for example, with the universe "abcdefghijklmnopqrstuvwxyz", we can
- * recognize lowercase letters only. */
-static int compile_cset_range6(struct nfa *nfa, long start, long end,
+/* parse_cset_range helper function, parses a cset range given some universe.
+ * for example, with the universe "abcdefghijklmnopqrstuvwxyz", we can recognize
+ * lowercase letters only. */
+static int parse_cset_range4(char *matches,
 		char low, char high, char *universe);
 
 /* lowest level compile function, compiles a single character */
@@ -276,14 +274,11 @@ found_match:
 	return i;
 }
 
-/* mathematically this function is unnecessary as character sets like [0-9] can
- * be matched with choices like (0|1|2|...|9), but in practice these large
- * choices create tons of orphan nodes in the dfa which waste a lot of memory
- * and spend a lot of cpu resources during compilation. also, supporting
- * character sets just leads to shorter regexes. */
 static long compile_cset(struct nfa *nfa, char *string, long len,
 		long *rs, long *re) {
-	long i, d;
+	int invert;
+	long ret, i, d, o;
+	char matches[NFA_NUM_REAL_CHARS];
 
 	*rs = new_node(nfa);
 	*re = new_node(nfa);
@@ -293,21 +288,50 @@ static long compile_cset(struct nfa *nfa, char *string, long len,
 		return compile_cclass(nfa, *rs, *re, string, len);
 	}
 
+	if (string[1] == '^') {
+		o = 2;
+		invert = 1;
+	} else {
+		o = 1;
+		invert = 0;
+	}
+
+	memset(matches, 0, sizeof(matches));
+
 	for (i = 1; i < len; ++i) {
-		if (i > 1 && string[i] == ']') {
-			return i+1;
+		if (i > o && string[i] == ']') {
+			ret = i+1;
+			goto populate;
 		}
-		d = compile_cset_section(nfa, *rs, *re, string+i, len-i);
+		d = parse_cset_section(matches, string+i, len-i);
 		if (d < 0) {
 			return -1;
 		}
 		i += d-1;
 	}
 	return -1;
+
+populate:
+	for (i = 0; i < NFA_NUM_REAL_CHARS; ++i) {
+		if (!invert && matches[i]) {
+			add_path(nfa, *rs, *re, i);
+		}
+		if (!invert) {
+			continue;
+		}
+
+		if (i == '\n') {
+			continue;
+		}
+		if (!matches[i]) {
+			add_path(nfa, *rs, *re, i);
+		}
+	}
+
+	return ret;
 }
 
-static long compile_cset_section(struct nfa *nfa, long start, long end,
-		char *string, long len) {
+static long parse_cset_section(char *matches, char *string, long len) {
 	int ch;
 	long r;
 	if (string[0] == '\\') {
@@ -319,13 +343,12 @@ static long compile_cset_section(struct nfa *nfa, long start, long end,
 		goto know_char;
 	}
 	if (len >= 3 && string[1] == '-') {
-		return compile_cset_range(nfa, start, end, string[0], string[2])
-			? -1:3;
+		return parse_cset_range(matches, string[0], string[2]) ? -1:3;
 	}
 	ch = (int) (unsigned char) string[0];
 	r = 1;
 know_char:
-	add_path(nfa, start, end, ch);
+	matches[ch] = 1;
 	return r;
 }
 
@@ -479,10 +502,9 @@ static void compile_dot(struct nfa *nfa, long start, long end) {
 	}
 }
 
-static int compile_cset_range(struct nfa *nfa, long start, long end,
-		char low, char high) {
+static int parse_cset_range(char *matches, char low, char high) {
 #define cset_universe(universe) \
-	if (!compile_cset_range6(nfa, start, end, low, high, universe)) { \
+	if (!parse_cset_range4(matches, low, high, universe)) { \
 		return 0; \
 	}
 	cset_universe("abcdefghijklmnopqrstuvwxyz");
@@ -492,7 +514,7 @@ static int compile_cset_range(struct nfa *nfa, long start, long end,
 	return 1;
 }
 
-static int compile_cset_range6(struct nfa *nfa, long start, long end,
+static int parse_cset_range4(char *matches,
 		char low, char high, char *universe) {
 	char *i1, *i2;
 	i1 = strchr(universe, low);
@@ -505,7 +527,7 @@ static int compile_cset_range6(struct nfa *nfa, long start, long end,
 	}
 
 	while (i1 <= i2) {
-		add_path(nfa, start, end, (int) (unsigned char) *i1);
+		matches[(int) (unsigned char) *i1] = 1;
 		++i1;
 	}
 	return 0;

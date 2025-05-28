@@ -11,9 +11,9 @@ void test_regex(void) {
 	assert(!regex_matches("a*b", "aaaac"));
 	assert(regex_matches("ca*t", "caaat"));
 	assert(!regex_matches("ca*t", "caabt"));
-	assert(regex_matches("[a-zA-Z]*a", "ajkAJHa"));
-	assert(!regex_matches("[a-zA-Z]*a", "ajkA1Ha"));
-	assert(!regex_matches("[a-zA-Z]*a", "ajkAJHb"));
+	assert(regex_matches("[a-zA-Z]*a", "ajkAZJHa"));
+	assert(!regex_matches("[a-zA-Z]*a", "ajkZA1Ha"));
+	assert(!regex_matches("[a-zA-Z]*a", "ajkZAJHb"));
 	assert(regex_matches("cat|dog", "cat"));
 	assert(regex_matches("cat|dog", "dog"));
 	assert(!regex_matches("cat|dog", "bug"));
@@ -41,6 +41,9 @@ void test_regex(void) {
 	assert(regex_matches("ab?", "a"));
 	assert(regex_matches("ab?", "ab"));
 	assert(!regex_matches("ab?", "ac"));
+	assert(regex_matches("[^abc]", "z"));
+	assert(!regex_matches("[^abc]", "a"));
+	assert(!regex_matches("[^abc]", "\n"));
 }
 
 static int regex_matches(char *regex, char *str) {

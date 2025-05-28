@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "arena.h"
 
@@ -8,7 +9,12 @@
 #include "regex_test.h"
 #include "getopt_test.h"
 
+#define FAIL "[\x1b[41;30;1mFAIL\x1b[0m]\t"
+#define PASS "[\x1b[32;1mPASS\x1b[0m]\t"
+#define INFO "[\x1b[33;1mINFO\x1b[0m]\t"
+
 static void summarize(void);
+static void report(char *level, char *template, ...);
 
 int main() {
 	test_lr();
@@ -27,18 +33,24 @@ void t_assert(int test, char *exp, char *file, int line) {
 		++passed;
 		return;
 	}
-	fprintf(stderr, "[FAIL]\tAssertion failed: %s (%s:%d)\n",
-			exp, file, line);
+	report(FAIL, "Assertion failed: %s (%s:%d)", exp, file, line);
 }
 
 static void summarize() {
-	fprintf(stderr, "[INFO]\tFinal results: %d/%d tests passed\n",
-			passed, total);
+	report(INFO, "Final results: %d/%d tests passed", passed, total);
 	if (passed < total) {
-		fputs("[FAIL]\tSome tests failed\n", stderr);
+		report(FAIL, "Some tests failed");
 	} else {
-		fputs("[SUCCESS]\tCongratulations, you don't suck at coding\n",
-				stderr);
+		report(PASS, "Congratulations, you don't suck at coding");
 	}
-	fputs("[INFO]\tRemember to run this test with Valgrind\n", stderr);
+	report(INFO, "Remember to run this test with Valgrind");
+}
+
+static void report(char *level, char *template, ...) {
+	va_list ap;
+
+	fputs(level, stderr);
+	va_start(ap, template);
+	vfprintf(stderr, template, ap);
+	fputc('\n', stderr);
 }
