@@ -325,7 +325,7 @@ static long compile_cclass(struct nfa *nfa, long start, long end,
 		 * important to me than the "punct" class from a regular
 		 * expressions standpoint.
 		 *
-		 * https://pubs.opengroup.org/onlinepubs/9799919799/
+		 * https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap07.html
 		 * */
 		return mlen;
 	}
@@ -429,7 +429,7 @@ static void compile_dot(struct nfa *nfa, long start, long end) {
 	 *   '\n' can be used to represent a <newline>. A <newline> shall not be
 	 *   matched by a period operator.
 	 *
-	 *   https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/utilities/lex.html
+	 *   https://pubs.opengroup.org/onlinepubs/9799919799/
 	 * */
 	for (i = 1; i < NFA_NUM_REAL_CHARS; ++i) {
 		if (i == '\n') {

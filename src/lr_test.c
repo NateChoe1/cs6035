@@ -14,7 +14,7 @@ void test_lr(void) {
 	/* this grammar was taken from
 	 *
 	 * https://suif.stanford.edu/dragonbook/lecture-notes/Stanford-CS143/11-LALR-Parsing.pdf
-	 * 
+	 *
 	 * it's an example of a grammar which can be parsed with an lr(1)
 	 * parser, but which is more efficient to parse with an lalr(1) parser
 	 * */
@@ -34,13 +34,13 @@ void test_lr(void) {
 	 * reductions by 0 are just accept states and transitions to 0 would
 	 * imply that the start token isn't really the start token.
 	 *
-state	a	b	$	S	X	S'	
-0	T/1	T/2	ERROR	T/3	T/4	ERROR	
-1	T/1	T/2	ERROR	ERROR	T/5	ERROR	
-2	R/3	R/3	R/3	ERROR	ERROR	ERROR	
-3	ERROR	ERROR	T/6	ERROR	ERROR	ERROR	
-4	T/1	T/2	ERROR	ERROR	T/7	ERROR	
-5	R/2	R/2	ERROR	ERROR	ERROR	ERROR	
+state	a	b	$	S	X	S'
+0	T/1	T/2	ERROR	T/3	T/4	ERROR
+1	T/1	T/2	ERROR	ERROR	T/5	ERROR
+2	R/3	R/3	R/3	ERROR	ERROR	ERROR
+3	ERROR	ERROR	T/6	ERROR	ERROR	ERROR
+4	T/1	T/2	ERROR	ERROR	T/7	ERROR
+5	R/2	R/2	ERROR	ERROR	ERROR	ERROR
 6	ACCEPT
 7	ERROR	ERROR	R/1	ERROR	ERROR	ERROR
 	 * */
