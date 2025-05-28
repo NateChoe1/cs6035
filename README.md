@@ -167,9 +167,9 @@ When we encounter a parse error, we return `LACC_ERROR`.
 ## Standard references
 
 * [POSIX regular
-  expressions](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html)
+  expressions](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap09.html)
 * [POSIX character
   classes](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap07.html)
-* [Lex](https://pubs.opengroup.org/onlinepubs/9799919799/)
+* [Lex](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/lex.html)
 
 

@@ -484,7 +484,7 @@ static void compile_dot(struct nfa *nfa, long start, long end) {
 	 *   that shall match any character in the supported character set
 	 *   except NUL.
 	 *
-	 *   https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_04_04
+	 *   https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html
 	 *
 	 * also note:
 	 *
@@ -492,7 +492,7 @@ static void compile_dot(struct nfa *nfa, long start, long end) {
 	 *   '\n' can be used to represent a <newline>. A <newline> shall not be
 	 *   matched by a period operator.
 	 *
-	 *   https://pubs.opengroup.org/onlinepubs/9799919799/
+	 *   https://pubs.opengroup.org/onlinepubs/9799919799/utilities/lex.html
 	 * */
 	for (i = 1; i < NFA_NUM_REAL_CHARS; ++i) {
 		if (i == '\n') {
