@@ -24,6 +24,10 @@ void test_regex(void) {
 	assert(!regex_matches("[!xdigit!]*", "abcd1234"));
 	assert(regex_matches("a.c", "abc"));
 	assert(!regex_matches("a.c", "a\nc"));
+	assert(!regex_matches("(ab*)*", "b"));
+	assert(regex_matches("(ab*)*", "abbbabbbaabbb"));
+	assert(regex_matches("a+b", "aaab"));
+	assert(!regex_matches("a+b", "b"));
 }
 
 static int regex_matches(char *regex, char *str) {

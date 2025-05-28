@@ -156,16 +156,20 @@ static int compile_local(struct nfa *nfa, char *string, long len,
 		return 1;
 	}
 
-	if (bound < len && string[bound] == '*') {
-		++bound;
+	if (bound < len &&
+			(string[bound] == '*' || string[bound] == '+')) {
 		ts = new_node(nfa);
 		te = new_node(nfa);
 		add_path(nfa, ts, fs, NFA_EMPTY_IDX);
 		add_path(nfa, fe, te, NFA_EMPTY_IDX);
 		add_path(nfa, fe, fs, NFA_EMPTY_IDX);
-		add_path(nfa, ts, te, NFA_EMPTY_IDX);
+		if (string[bound] == '*') {
+			add_path(nfa, ts, te, NFA_EMPTY_IDX);
+		}
+
 		fs = ts;
 		fe = te;
+		++bound;
 	}
 
 	if (compile_local(nfa, string+bound, len-bound, &ts, &te)) {
