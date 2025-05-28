@@ -46,6 +46,8 @@ static void compile_cclass_expanded(struct nfa *nfa, long start, long end,
  * function returns 0 */
 static long class_matches(char *s, char *name, long len);
 
+static void compile_dot(struct nfa *nfa, long start, long end);
+
 /* compile_cset helper function, compiles a cset range. for example, for the
  * range [a-z], we call compile_cset_range(nfa, start, end, 'a', 'z')
  *
@@ -190,6 +192,11 @@ static long compile_first(struct nfa *nfa, char *string, long len,
 		}
 		compile_char(nfa, string[1], rs, re);
 		return 2;
+	case '.':
+		*rs = new_node(nfa);
+		*re = new_node(nfa);
+		compile_dot(nfa, *rs, *re);
+		return 1;
 	default:
 		compile_char(nfa, string[0], rs, re);
 		return 1;
@@ -318,7 +325,7 @@ static long compile_cclass(struct nfa *nfa, long start, long end,
 		 * important to me than the "punct" class from a regular
 		 * expressions standpoint.
 		 *
-		 * https://pubs.opengroup.org/onlinepubs/7908799/xbd/locale.html
+		 * https://pubs.opengroup.org/onlinepubs/9799919799/
 		 * */
 		return mlen;
 	}
@@ -360,6 +367,8 @@ static long compile_cclass(struct nfa *nfa, long start, long end,
 	}
 
 	if ((mlen = class_matches(string, "space", len))) {
+		/* not included: <form-feed>, <newline>, <carriage-return>,
+		 * <vertical-tab> */
 		compile_cclass_expanded(nfa, start, end,
 				" \t");
 		return mlen;
@@ -403,6 +412,31 @@ static long class_matches(char *s, char *name, long len) {
 		return i+4;
 	}
 	return 0;
+}
+
+static void compile_dot(struct nfa *nfa, long start, long end) {
+	int i;
+
+	/*   A <period> ('.'), when used outside a bracket expression, is an ERE
+	 *   that shall match any character in the supported character set
+	 *   except NUL.
+	 *
+	 *   https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_04_04
+	 *
+	 * also note:
+	 *
+	 *   A literal <newline> cannot occur within an ERE; the escape sequence
+	 *   '\n' can be used to represent a <newline>. A <newline> shall not be
+	 *   matched by a period operator.
+	 *
+	 *   https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/utilities/lex.html
+	 * */
+	for (i = 1; i < NFA_NUM_REAL_CHARS; ++i) {
+		if (i == '\n') {
+			continue;
+		}
+		add_path(nfa, start, end, i);
+	}
 }
 
 static int compile_cset_range(struct nfa *nfa, long start, long end,

@@ -22,6 +22,8 @@ void test_regex(void) {
 	assert(regex_matches("[.xdigit.]*", "abcd1234"));
 	assert(!regex_matches("[=xdigit=]*", "zzz"));
 	assert(!regex_matches("[!xdigit!]*", "abcd1234"));
+	assert(regex_matches("a.c", "abc"));
+	assert(!regex_matches("a.c", "a\nc"));
 }
 
 static int regex_matches(char *regex, char *str) {

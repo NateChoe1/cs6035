@@ -6,8 +6,6 @@
 #include <string.h>
 #include <limits.h>
 
-#define NUM_CHARS ((int) UCHAR_MAX + 1)
-
 /* converts state to closure(state) */
 static void enclose(struct state *state, void *arg);
 static void enclose_item(struct nfa *nfa,
@@ -44,7 +42,7 @@ struct regex *regex_compile(struct arena *arena, char *pattern) {
 	initial_state = state_new(arena);
 	state_append(initial_state, nfa->start_node);
 
-	ret = dfa_new(arena, NUM_CHARS, 0, initial_state, &builder, nfa);
+	ret = dfa_new(arena, NFA_CHARSET_SIZE, 0, initial_state, &builder, nfa);
 
 end:
 	arena_free(ta);
@@ -187,13 +185,13 @@ static void followups(struct state *state, void *arg, char *ret) {
 	long node;
 	long i;
 
-	memset(ret, 0, NUM_CHARS);
+	memset(ret, 0, NFA_CHARSET_SIZE);
 	nfa = (struct nfa *) arg;
 
 	iter = state->head;
 	while (iter != NULL) {
 		node = iter->value;
-		for (i = 0; i < NUM_CHARS; ++i) {
+		for (i = 0; i < NFA_CHARSET_SIZE; ++i) {
 			ret[i] |= nfa->nodes[node].transitions[i] != NULL;
 		}
 
