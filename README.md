@@ -171,5 +171,3 @@ When we encounter a parse error, we return `LACC_ERROR`.
 * [POSIX character
   classes](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap07.html)
 * [Lex](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/lex.html)
-
-

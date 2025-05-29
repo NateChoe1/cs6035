@@ -278,7 +278,7 @@ static long compile_cset(struct nfa *nfa, char *string, long len,
 		long *rs, long *re) {
 	int invert;
 	long ret, i, d, o;
-	char matches[NFA_NUM_REAL_CHARS];
+	char matches[NFA_CHARSET_SIZE];
 
 	*rs = new_node(nfa);
 	*re = new_node(nfa);
@@ -312,7 +312,7 @@ static long compile_cset(struct nfa *nfa, char *string, long len,
 	return -1;
 
 populate:
-	for (i = 0; i < NFA_NUM_REAL_CHARS; ++i) {
+	for (i = 0; i < NFA_CHARSET_SIZE; ++i) {
 		if (!invert && matches[i]) {
 			add_path(nfa, *rs, *re, i);
 		}
@@ -320,9 +320,6 @@ populate:
 			continue;
 		}
 
-		if (i == '\n') {
-			continue;
-		}
 		if (!matches[i]) {
 			add_path(nfa, *rs, *re, i);
 		}
@@ -494,7 +491,7 @@ static void compile_dot(struct nfa *nfa, long start, long end) {
 	 *
 	 *   https://pubs.opengroup.org/onlinepubs/9799919799/utilities/lex.html
 	 * */
-	for (i = 1; i < NFA_NUM_REAL_CHARS; ++i) {
+	for (i = 1; i < NFA_CHARSET_SIZE; ++i) {
 		if (i == '\n') {
 			continue;
 		}

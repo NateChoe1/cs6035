@@ -5,16 +5,7 @@
 
 #include "arena.h"
 
-/* nfa character set
- *
- * characters 0-255 are 8 bit bytes
- * character 256 is the beginning of line anchor (^)
- * charactor 257 is the end of line anchor ($)
- * */
-#define NFA_NUM_REAL_CHARS 256
-#define NFA_ANCHOR_CARET 256  /* ^ */
-#define NFA_ANCHOR_DOLLAR 257 /* $ */
-#define NFA_CHARSET_SIZE 258
+#define NFA_CHARSET_SIZE 256
 
 #define NFA_EMPTY_IDX ((int) NFA_CHARSET_SIZE + 1)
 #define NFA_MAX_TRANSITIONS ((int) NFA_CHARSET_SIZE + 2)
