@@ -43,6 +43,8 @@ void test_regex(void) {
 	assert(!regex_matches("ab?", "ac"));
 	assert(regex_matches("[^abc]", "z"));
 	assert(!regex_matches("[^abc]", "a"));
+	assert(regex_matches("", ""));
+	assert(!regex_matches("", "a"));
 }
 
 static int regex_matches(char *regex, char *str) {

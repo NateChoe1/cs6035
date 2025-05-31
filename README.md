@@ -30,35 +30,56 @@ compile this program, just run these commands:
 
 ## Yex
 
-Yex is a lexer. It's pretty dumb, to invoke it just run
+Yex is a lexer. It tries to be compatible with POSIX Lex.
 
-    ./dist/yex input.yex output.c
+### Implementation-specific behavior:
 
-The generated C code relies on `<yex.h>`, as defined in `dist/yex.h`. The input
-file format is like this:
+The default type of `yytext` is `char *`
 
-    #include <stdio.h>
-    #define YEX_NAME yylex
-    /* other header stuff */
-    %%
-    !regex 1
-    puts("result 1");
-    !(regex 2)*
-    puts("result 2");
+The symbols in `lex.yy.c` are defined as follows:
 
-This is extremely stupid, and I will absolutely improve this later.
+```c
+YYLEX_V int yylex(void);    /* #define YYLEX_V */
+YYMORE_V int yymore(void);  /* #define YYMORE_V static */
+YYLESS_V int yyless(int n); /* #define YYLESS_V static */
+YYINPUT_V int input(void);  /* #define YYINPUT_V static */
+YYINPUT_V int unput(int c); /* #define YYUNPUT_V static */
+```
 
-The exclamation marks indicate that these regular expression matches are greedy.
+The macros `YYLEX_V`, `YYMORE_V`, are defined with a redefinition guard, as in
+this snippet:
 
-The outputted C code is guaranteed to define this function:
+```c
+#ifndef YYINPUT_V
+#define YYINPUT_V static
+#endif
+```
 
-    int YEX_NAME(struct yex_buffer *buffer);
+The default values of these macros were shown in the comments of an earlier
+snippet.
 
-This function may modify the contents of `buffer->parsed`.
+You can change the names of the `yylex`, `yymore`, `yyless`, `input`, and
+`unput` symbols with a macro definition in the definitions section, like so:
 
-If `YEX_NAME` isn't defined, we default to the name `yex_read`
+```lex
+%{
+ #define yylex get_token
+ #define yymore append_next
+ /* and so on */
+%}
 
-# Lacc
+%%
+
+/* some lex rules */
+
+%%
+
+/* some user subroutines */
+```
+
+The `%p`, `%n`, `%a`, and `%k` directives are ignored.
+
+## Lacc
 
 Lacc is a parser generator. It's also pretty dumb. To invoke it just run
 

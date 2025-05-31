@@ -21,8 +21,8 @@ void strmap_put(struct strmap *strmap, const char *key, const void *value) {
 	hashmap_put((struct hashmap *) strmap, key, value);
 }
 
-void *strmap_get(struct strmap *strmap, const char *key) {
-	return hashmap_get((struct hashmap *) strmap, key);
+char *strmap_get(struct strmap *strmap, const char *key) {
+	return (char *) hashmap_get((struct hashmap *) strmap, key);
 }
 
 void strmap_remove(struct strmap *strmap, const char *key) {
