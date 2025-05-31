@@ -504,6 +504,13 @@ static struct state *simplify(struct arena *arena, struct state *state,
 
 	iter = state->head;
 	while (iter != NULL) {
+		/* this is the magic line that turns this from an lr(1) parser
+		 * into an lalr(1) parser. since we simplify each state by only
+		 * looking at its production and position while ignoring the
+		 * lookahead, all of our states with equivalent items except for
+		 * lookaheads get combined. if we didn't have this function at
+		 * all and just passed NULL into make_dfa, this would be an
+		 * lr(1) parser. */
 		item = &items->items[iter->value];
 		state_append(ret, item->rule->ii + item->position);
 

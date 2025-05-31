@@ -6,11 +6,18 @@
 
 #include "getopt_test.h"
 
-/* 0 on failure, 1 on success */
-static int test_set(char *optstring, char **argv, char **expected,
+static void test_case_1(void);
+static void test_case_2(void);
+
+static void test_set(char *optstring, char **argv, char **expected,
 		char *next);
 
 void test_getopt(void) {
+	test_case_1();
+	test_case_2();
+}
+
+static void test_case_1(void) {
 	char *argv[] = {
 		"main",
 		"-o",
@@ -31,10 +38,23 @@ void test_getopt(void) {
 		"oval",
 		NULL,
 	};
-	assert(test_set("alo:", argv, expected, "arg"));
+	test_set("alo:", argv, expected, "arg");
 }
 
-static int test_set(char *optstring, char **argv, char **expected,
+static void test_case_2(void) {
+	char *argv[] = {
+		"main",
+		"-a",
+		NULL,
+	};
+	char *expected[] = {
+		"?",
+		NULL,
+	};
+	test_set("h", argv, expected, NULL);
+}
+
+static void test_set(char *optstring, char **argv, char **expected,
 		char *next) {
 	int i, argc, ret;
 
@@ -46,21 +66,22 @@ static int test_set(char *optstring, char **argv, char **expected,
 
 		if (v != expected[i][0]) {
 			assert(0);
-			return 0;
+			return;
 		}
 
 		if (expected[i][1] && strcmp(optarg, expected[i]+1) != 0) {
 			assert(0);
-			return 0;
+			return;
 		}
 	}
 
-	if (getopt(argc, argv, optstring) != -1) {
+	if (expected[i-1][0] != '?' &&
+			getopt(argc, argv, optstring) != -1) {
 		assert(0);
-		return 0;
+		return;
 	}
 
-	ret = strcmp(argv[optind], next) == 0;
+	ret = (next != NULL) ? (strcmp(argv[optind], next) == 0) : 1;
 	assert(ret);
-	return ret;
+	return;
 }

@@ -170,4 +170,6 @@ When we encounter a parse error, we return `LACC_ERROR`.
   expressions](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap09.html)
 * [POSIX character
   classes](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap07.html)
-* [Lex](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/lex.html)
+* [lex](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/lex.html)
+* [getopt](https://pubs.opengroup.org/onlinepubs/9799919799/functions/getopt.html)
+* [Command argument syntax](https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap12.html#tag_12_02)

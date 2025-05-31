@@ -55,10 +55,12 @@ int getopt(int argc, char **argv, const char *optstring) {
 		}
 
 		if (match == flag) {
-			break;
+			goto found_match;
 		}
 	}
+	goto error;
 
+found_match:
 	if (!has_arg) {
 		++argidx;
 		if (argv[optind][argidx] == '\0') {

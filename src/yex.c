@@ -3,6 +3,8 @@
 #include "dfa.h"
 #include "file.h"
 #include "regex.h"
+#include "strmap.h"
+#include "getopt.h"
 
 struct pattern_list {
 	struct dfa *regex;
@@ -25,6 +27,29 @@ int yex_main(int argc, char **argv) {
 	FILE *input, *output;
 	struct arena *ra;
 	struct pattern_list *patterns;
+	int c, verbose, to_stdout;
+
+	verbose = to_stdout = 0;
+	for (;;) {
+		c = getopt(argc, argv, "tnv");
+		switch (c) {
+		case 't':
+			to_stdout = 1;
+			break;
+		case 'n':
+			verbose = 0;
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		case '?':
+		case 0:
+			break;
+		}
+	}
+
+	(void) verbose;
+	(void) to_stdout;
 
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s [-t] [-n|-v] [file...]\n", argv[0]);
