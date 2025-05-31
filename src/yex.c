@@ -43,18 +43,16 @@ int yex_main(int argc, char **argv) {
 			verbose = 1;
 			break;
 		case '?':
-		case 0:
-			break;
+			fprintf(stderr, "Unknown option -%c\n", optopt);
+			goto unknown_arg;
+		case -1:
+			goto got_args;
 		}
 	}
+got_args:
 
-	(void) verbose;
-	(void) to_stdout;
-
-	if (argc != 3) {
-		fprintf(stderr, "Usage: %s [-t] [-n|-v] [file...]\n", argv[0]);
-		return 1;
-	}
+	printf("%d %d\n", to_stdout, verbose);
+	return 0;
 
 	input = fopen(argv[1], "r");
 	output = fopen(argv[2], "w");
@@ -73,6 +71,10 @@ int yex_main(int argc, char **argv) {
 	fclose(input);
 	fclose(output);
 	return 0;
+unknown_arg:
+	fprintf(stderr, "Usage: %s [-t] [-n|-v] [file...]\n",
+			argv[0]);
+	return 1;
 }
 
 static struct pattern_list *read_patterns(FILE *input, struct arena *arena) {

@@ -14,7 +14,7 @@ int optopt;
 static int argidx = 1;
 
 int getopt(int argc, char **argv, const char *optstring) {
-	char rep_noarg, flag, match;
+	char rep_noarg, match;
 	int i, has_arg;
 
 	if (argv[optind] == NULL ||
@@ -38,7 +38,10 @@ int getopt(int argc, char **argv, const char *optstring) {
 		rep_noarg = '?';
 	}
 
-	flag = argv[optind][argidx];
+	optopt = argv[optind][argidx];
+	if (optopt == ':') {
+		goto error;
+	}
 
 	for (i = 0; optstring[i]; ++i) {
 		match = optstring[i];
@@ -54,7 +57,7 @@ int getopt(int argc, char **argv, const char *optstring) {
 			has_arg = 0;
 		}
 
-		if (match == flag) {
+		if (match == optopt) {
 			goto found_match;
 		}
 	}
