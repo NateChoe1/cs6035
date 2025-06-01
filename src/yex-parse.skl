@@ -1,0 +1,212 @@
+fputs("
+", output);
+>/* vim: syntax=c
+>*/
+>static int parse_char(struct parse_state *state, int c, FILE *output) {
+>COROUTINE_START(state->parse_char_progress);
+>state->arena = arena_new();
+
+/* definitions */
+>parse_definitions(state, RESET_STATE, output);
+>for (;;) {
+>	GET_CHAR;
+>	switch (parse_definitions(state, c, output)) {
+>	case 0:
+>		continue;
+>	case -1:
+>		goto parsed_definitions;
+>	case 1:
+>		state->ret = 1;
+>		goto ret;
+>	}
+>}
+>parsed_definitions:
+
+#include <stdio.h>
+#include <stdlib.h>
+
+/* visibility macros, may be overwritten by the definitions section */
+#ifndef YYLEX_V
+#define YYLEX_V
+#endif
+
+#ifndef YYMORE_V
+#define YYMORE_V static
+#endif
+
+#ifndef YYLESS_V
+#define YYLESS_V static
+#endif
+
+#ifndef YYINPUT_V
+#define YYINPUT_V static
+#endif
+
+#ifndef YYUNPUT_V
+#define YYUNPUT_V static
+#endif
+
+#ifndef YYUNPUT_V
+#define YYUNPUT_V static
+#endif
+
+#ifndef YYTEXT_V
+#define YYTEXT_V
+#endif
+
+#ifndef YYIN_V
+#define YYIN_V
+#endif
+
+#ifndef YYLENG_V
+#define YYLENG_V
+#endif
+
+#ifndef YYRESET_V
+#define YYRESET_V static
+#endif
+
+#ifndef YYERROR_V
+#define YYERROR_V static
+#endif
+
+/* variable definitions */
+
+/* you could change this value in the definitions section if you wanted to, but
+ * there's really no reason to do that instead of using %o */
+#ifndef YYTEXT_SIZE
+>fprintf(output, "#define YYTEXT_SIZE %ld\n", state->output_size);
+#endif
+
+>if (state->yytext_type == POINTER) {
+	static char yytext_data[YYTEXT_SIZE]
+	YYTEXT_V char *yytext = yytext_data;
+>} else {
+	YYTEXT_V char yytext[YYTEXT_SIZE]
+>}
+
+YYLENG_V int yyleng = 0;
+YYIN_V FILE *yyin = stdin;
+
+/* circular buffer to store read data */
+static unsigned char yybuf[YYTEXT_SIZE];
+static int yybuf_start = 0;
+static int yybuf_len = 0;
+
+/* standard function definitions */
+YYLEX_V int yylex(void);
+YYMORE_V int yymore(void);
+YYLESS_V int yyless(int n);
+YYINPUT_V int input(void);
+YYUNPUT_V int unput(int c);
+
+/* extension definitions */
+YYRESET_V int yyreset(void);
+YYERROR_V char *yyerror(int code);
+
+/* helper functions */
+static void yyfix_start(void);
+
+/* state definitions */
+enum yystate {
+>for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
+>	fprintf(output, "YYSTATE_USER_%s,\n", state->sh_states[state->i]);
+>}
+>for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
+>	fprintf(output, "YYSTATE_USER_%s,\n", state->ex_states[state->i]);
+>}
+	YYSTATE_DEFAULT
+};
+enum yystate yystate = YYSTATE_DEFAULT;
+
+#define YYERROR_SUCCESS 0
+#define YYERROR_BUFF_FULL 1
+#define YYERROR_INV_ARG 2
+
+/* boolean indicating that yymore was called */
+int yyappend = 0;
+
+YYLEX_V int yylex(void) {
+}
+
+YYMORE_V int yymore(void) {
+	yyappend = 1;
+	return YYERROR_SUCCESS;
+}
+
+YYLESS_V int yyless(int n) {
+	int i, r;
+
+	if (n < 0 || n >= yyleng) {
+		return YYERROR_INV_ARG;
+	}
+
+	for (i = yyleng-1; i >= n; --i) {
+		r = unputc(yytext[i]);
+		if (r != YYERROR_SUCCESS) {
+			return r;
+		}
+	}
+	yytext[n] = '\0';
+	return YYERROR_SUCCESS;
+}
+
+YYINPUT_V int input(void) {
+	int ret;
+
+	if (yybuf_len > 0) {
+		ret = yybuf[yybuf_start];
+		++yybuf_start;
+		yyfix_start();
+	} else {
+		ret = fgetc(yyin);
+	}
+
+	if (ret == EOF) {
+		return 0;
+	}
+	return ret;
+}
+
+YYUNPUT_V int unput(int c) {
+	if (yybuf_len >= YYTEXT_SIZE) {
+		return YYERROR_BUFF_FULL;
+	}
+	--yybuf_start;
+	++yybuf_len;
+	yyfix_start;
+	yybuf[yybuf_start] = c;
+	return YYERROR_SUCCESS;
+}
+
+YYRESET_V int yyreset(void) {
+	yybuf_start = 0;
+	yybuf_len = 0;
+	yystate = YYSTATE_DEFAULT;
+	yyappend = 0;
+	return YYERROR_SUCCESS;
+}
+
+YYERROR_V char *yyerror(int code) {
+	switch (code) {
+	case YYERROR_SUCCESS: return "Success";
+	case YYERROR_BUFF_FULL: return "Input buffer is full";
+	case YYERROR_INV_ARG: return "Invalid input";
+	default: return "Unknown error code";
+	}
+}
+
+static void yyfix_start(void) {
+	div_t d;
+	d = div(yybuf_start, YYTEXT_SIZE);
+	yybuf_start = d.rem;
+	while (yybuf_start < 0) {
+		yybuf_start += YYTEXT_SIZE;
+	}
+}
+
+>ret:
+>arena_free(state->arena);
+>RETURN(state->ret);
+>COROUTINE_END;
+>}

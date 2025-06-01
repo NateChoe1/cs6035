@@ -225,55 +225,13 @@ static void report(char *level, char *message, ...) {
 	} \
 } while (0)
 
-static int parse_char(struct parse_state *state, int c, FILE *output) {
-	COROUTINE_START(state->parse_char_progress);
-
-	state->arena = arena_new();
-
-	/* parse definitions section
-	 * the first call is there to initialize the definitions part of the
-	 * state */
-	parse_definitions(state, RESET_STATE, output);
-	for (;;) {
-		GET_CHAR;
-		state->ret = parse_definitions(state, c, output);
-
-		switch (state->ret) {
-		case 0:
-			continue;
-		case -1:
-			goto parsed_definitions;
-		case 1:
-			state->ret = 1;
-			goto ret;
-		}
-	}
-parsed_definitions:
-
-	puts("Shared states:");
-	for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
-		puts(state->sh_states[state->i]);
-	}
-
-	puts("Exclusive states:");
-	for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
-		puts(state->ex_states[state->i]);
-	}
-	printf("%ld\n", state->output_size);
-
-	state->ret = 0;
-ret:
-	arena_free(state->arena);
-	RETURN(state->ret);
-
-	COROUTINE_END;
-}
+#include "yex-parse.skl.comp"
 
 static int parse_definitions(struct parse_state *state, int c, FILE *output) {
 	COROUTINE_START(state->parse_definitions_progress);
 
 	state->in_def_block = 0;
-	state->yytext_type = POINTER;
+	state->yytext_type = ARRAY;
 
 	state->substitutions = strmap_new(state->arena);
 	state->output_size = 3000;

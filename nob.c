@@ -24,6 +24,9 @@ char *clone(char *str);
 char *append(const char *s1, const char *s2);
 
 bool should_include(const char *filename, const char *target, const char *ext);
+void compile_skeleton(char *in, char *out);
+void read_line(FILE *in, char *line, size_t size);
+void put_escaped_char(int c, FILE *out);
 
 int main(int argc, char **argv) {
 	size_t i;
@@ -49,6 +52,10 @@ int main(int argc, char **argv) {
 			nob_da_append(&headers, append(SRC_DIR, srcdir.items[i]));
 		} else if (should_include(srcdir.items[i], target, ".c")) {
 			nob_da_append(&cfiles, srcdir.items[i]);
+		} else if (should_include(srcdir.items[i], target, ".skl")) {
+			char *p = append(SRC_DIR, srcdir.items[i]);
+			nob_da_append(&headers, p);
+			compile_skeleton(p, append(p, ".comp"));
 		}
 	}
 
@@ -196,4 +203,70 @@ bool should_include(const char *filename, const char *target, const char *ext) {
 		}
 	}
 	return strcmp(suffix + i, ext) == 0;
+}
+
+void compile_skeleton(char *in_path, char *out_path) {
+	if (!nob_needs_rebuild(out_path, (const char **) &in_path, 1)) {
+		return;
+	}
+
+	FILE *in = fopen(in_path, "r");
+	FILE *out = fopen(out_path, "w");
+	if (in == NULL || out == NULL) {
+		exit(EXIT_FAILURE);
+	}
+
+	char head[100];
+	char tail[100];
+	read_line(in, head, sizeof(head));
+	read_line(in, tail, sizeof(head));
+
+	for (;;) {
+		int c = fgetc(in);
+		if (c == EOF) {
+			fflush(out);
+			return;
+		}
+		if (c == '>') {
+			for (;;) {
+				c = fgetc(in);
+				fputc(c, out);
+				if (c == '\n') {
+					break;
+				}
+			}
+			continue;
+		}
+
+		ungetc(c, in);
+		fputs(head, out);
+		for (;;) {
+			int c = fgetc(in);
+			if (c == '\n' || c == EOF) {
+				break;
+			}
+			put_escaped_char(c, out);
+		}
+		fputs(tail, out);
+		fputc('\n', out);
+	}
+}
+
+void read_line(FILE *in, char *line, size_t size) {
+	int i;
+	for (i = 0; i < size-1; ++i) {
+		line[i] = fgetc(in);
+		if (line[i] == EOF || line[i] == '\n') {
+			break;
+		}
+	}
+	line[i] = '\0';
+}
+
+void put_escaped_char(int c, FILE *out) {
+	if (c == '\\' || c == '"') {
+		fprintf(out, "\\%c", c);
+		return;
+	}
+	fputc(c, out);
 }

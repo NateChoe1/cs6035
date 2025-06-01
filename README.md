@@ -34,7 +34,7 @@ Yex is a lexer. It tries to be compatible with POSIX Lex.
 
 ### Implementation-specific behavior:
 
-The default type of `yytext` is `char *`
+The default type of `yytext` is `char[]`
 
 The symbols in `lex.yy.c` are defined as follows:
 
@@ -43,11 +43,25 @@ YYLEX_V int yylex(void);    /* #define YYLEX_V */
 YYMORE_V int yymore(void);  /* #define YYMORE_V static */
 YYLESS_V int yyless(int n); /* #define YYLESS_V static */
 YYINPUT_V int input(void);  /* #define YYINPUT_V static */
-YYINPUT_V int unput(int c); /* #define YYUNPUT_V static */
+YYUNPUT_V int unput(int c); /* #define YYUNPUT_V static */
+
+/* if using %pointer */
+static char yytext_data[YYTEXT_SIZE];
+YYTEXT_V char *yytext = yytext_data; /* #define YYTEXT_V */
+
+/* if using %array */
+YYTEXT_V char yytext[YYTEXT_SIZE];   /* #define YYTEXT_V */
+
+YYLENG_V int yyleng; /* #define YYLENG_V */
+YYIN_V FILE *yyin; /* #define YYIN_V */
+
+YYRESET_V int yyreset(void); /* #define YYRESET_V static */
+
+YYERROR_V char *yyerror(int code); /* #define YYERROR_V static */
 ```
 
-The macros `YYLEX_V`, `YYMORE_V`, are defined with a redefinition guard, as in
-this snippet:
+The visibility macros macros (i.e. `YYLEX_V`, `YYMORE_V`, etc.) are defined with
+a redefinition guard, as in this snippet:
 
 ```c
 #ifndef YYINPUT_V
@@ -78,6 +92,18 @@ You can change the names of the `yylex`, `yymore`, `yyless`, `input`, and
 ```
 
 The `%p`, `%n`, `%a`, and `%k` directives are ignored.
+
+The extension function `yyreset()` will reset the lexer for further use with a
+different file by throwing away any internal buffers and resetting all state.
+The file pointer that was previously stored in `yyin` SHOULD NOT be reused. This
+function returns 0 on success and an error code greater than zero on failure.
+
+The extension function `yyerror()` will take as input an error code returned by
+some other function and return a string providing an explanation of what error
+occurred.
+
+Defining a visibility macro as anything other than `static` or the empty string
+is undefined behavior. No `const int yyleng`, for example.
 
 ## Lacc
 
