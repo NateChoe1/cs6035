@@ -2,14 +2,14 @@ fputs("
 ", output);
 >/* vim: syntax=c
 >*/
->static int parse_char(struct parse_state *state, int c, FILE *output) {
+>int yex_parse_char(struct yex_parse_state *state, int c, FILE *output) {
 >COROUTINE_START(state->parse_char_progress);
 >state->arena = arena_new();
 
 /* definitions */
->parse_definitions(state, RESET_STATE, output);
+>parse_definitions(state, COROUTINE_RESET, output);
 >for (;;) {
->	GET_CHAR;
+>	COROUTINE_GETC;
 >	switch (parse_definitions(state, c, output)) {
 >	case 0:
 >		continue;
@@ -21,6 +21,22 @@ fputs("
 >	}
 >}
 >parsed_definitions:
+
+>/* also, let's parse the rules while we're at it */
+>parse_rules(state, COROUTINE_RESET);
+>for (;;) {
+>	COROUTINE_GETC;
+>	switch (parse_rules(state, c)) {
+>	case 0:
+>		continue;
+>	case -1:
+>		goto parsed_rules;
+>	case 1:
+>		state->ret = 1;
+>		goto ret;
+>	}
+>}
+>parsed_rules:
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -105,19 +121,20 @@ YYRESET_V int yyreset(void);
 YYERROR_V char *yyerror(int code);
 
 /* helper functions */
+static int yyinput(void); /* gets an input and writes it to yytext */
 static void yyfix_start(void);
 
 /* state definitions */
 enum yystate {
 >for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
->	fprintf(output, "YYSTATE_USER_%s,\n", state->sh_states[state->i]);
+>	fprintf(output, "%s,\n", state->sh_states[state->i]);
 >}
 >for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
->	fprintf(output, "YYSTATE_USER_%s,\n", state->ex_states[state->i]);
+>	fprintf(output, "%s,\n", state->ex_states[state->i]);
 >}
-	YYSTATE_DEFAULT
+	INITIAL = 0
 };
-enum yystate yystate = YYSTATE_DEFAULT;
+enum yystate yystate = INITIAL;
 
 #define YYERROR_SUCCESS 0
 #define YYERROR_BUFF_FULL 1
@@ -126,8 +143,14 @@ enum yystate yystate = YYSTATE_DEFAULT;
 /* boolean indicating that yymore was called */
 int yyappend = 0;
 
+#define YYSTATEIFY(state) YYSTATE_##state
+
+#define BEGIN yystate =
+#define ECHO fputs(yytext, stdout)
 YYLEX_V int yylex(void) {
 }
+#undef BEGIN
+#undef ECHO
 
 YYMORE_V int yymore(void) {
 	yyappend = 1;
@@ -168,6 +191,15 @@ YYINPUT_V int input(void) {
 	return ret;
 }
 
+static int yyinput(void) {
+	if (yyleng+1 >= YYTEXT_SIZE) {
+		return YYERROR_BUFF_FULL;
+	}
+	yytext[yyleng++] = input();
+	yytext[yyleng] = '\0';
+	return YYERROR_SUCCESS;
+}
+
 YYUNPUT_V int unput(int c) {
 	if (yybuf_len >= YYTEXT_SIZE) {
 		return YYERROR_BUFF_FULL;
@@ -205,8 +237,17 @@ static void yyfix_start(void) {
 	}
 }
 
+/* user subroutines */
+>for (;;) {
+>	COROUTINE_GETC;
+>	if (c == COROUTINE_EOF) {
+>		break;
+>	}
+>	fputc(c, output);
+>}
+
 >ret:
 >arena_free(state->arena);
->RETURN(state->ret);
+>COROUTINE_RET(state->ret);
 >COROUTINE_END;
 >}

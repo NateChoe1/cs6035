@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdarg.h>
+
 #include "utils.h"
 
 int startswith(char *string, char *prefix) {
@@ -9,4 +12,12 @@ int startswith(char *string, char *prefix) {
 		}
 	}
 	return 1;
+}
+
+void report(char *level, char *message, ...) {
+	va_list ap;
+
+	va_start(ap, message);
+	fputs(level, stderr);
+	vfprintf(stderr, message, ap);
 }
