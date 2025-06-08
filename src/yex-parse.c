@@ -91,6 +91,10 @@ static int parse_definition_line(struct yex_parse_state *state, FILE *output) {
 		goto echo;
 	}
 
+	if (state->line[0] == '\0') {
+		return -1;
+	}
+
 	if (state->line[0] != '%') {
 		return parse_substitution(state);
 	}
@@ -296,6 +300,10 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 	for (;;) {
 		COROUTINE_GETL;
 
+		if (state->line_len == 0) {
+			goto skip_parse;
+		}
+
 		state->sb = sb_new(state->arena);
 		if (read_ere(state->sb, state->line, state->substitutions)
 				== NULL) {
@@ -304,6 +312,7 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 		}
 		puts(sb_read(state->sb));
 
+skip_parse:
 		if (state->eof) {
 			break;
 		}
@@ -339,12 +348,16 @@ static char *read_ere(struct sb *sb, char *ere, struct strmap *substs) {
 
 		if (ere[i] == '{') {
 			d = read_subst(sb, ere+i, substs);
-			if (d == 0) {
+			switch (d) {
+			case 0:
+				goto not_subst;
+			case -1:
 				return NULL;
 			}
 			i += d-1;
 			continue;
 		}
+not_subst:
 
 		if (ere[i] != '\\') {
 			sb_append(sb, ere[i]);
@@ -373,7 +386,7 @@ static char *read_ere(struct sb *sb, char *ere, struct strmap *substs) {
  * regex was */
 static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
 	long d;
-	char *k, *v;
+	char *k, *v, *e;
 
 	for (d = 0; ere[d] != '\0' && ere[d] != '}'; ++d) ;
 
@@ -393,8 +406,10 @@ static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
 	}
 
 	sb_append(sb, '(');
-	if (read_ere(sb, v, substs) == NULL) {
-		d = 0;
+	e = read_ere(sb, v, substs);
+	if (e == NULL || *e != '\0') {
+		fprintf(stderr, "Error while expanding substition `%s`\n", k);
+		d = -1;
 		goto end;
 	}
 	sb_append(sb, ')');
