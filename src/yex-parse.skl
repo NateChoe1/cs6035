@@ -125,16 +125,17 @@ static int yyinput(void); /* gets an input and writes it to yytext */
 static void yyfix_start(void);
 
 /* state definitions */
-enum yystate {
+#define INITIAL 0
+>state->j = 1;
 >for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
->	fprintf(output, "%s,\n", state->sh_states[state->i]);
+>	fprintf(output, "#define %s %ld\n",
+>			state->sh_states[state->i], state->j++);
 >}
 >for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
->	fprintf(output, "%s,\n", state->ex_states[state->i]);
+>	fprintf(output, "#define %s %ld\n",
+>			state->ex_states[state->i], state->j++);
 >}
-	INITIAL = 0
-};
-enum yystate yystate = INITIAL;
+int yystate = INITIAL;
 
 #define YYERROR_SUCCESS 0
 #define YYERROR_BUFF_FULL 1
@@ -151,6 +152,14 @@ YYLEX_V int yylex(void) {
 }
 #undef BEGIN
 #undef ECHO
+
+#undef INITIAL
+>for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
+>	fprintf(output, "#undef %s\n", state->sh_states[state->i]);
+>}
+>for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
+>	fprintf(output, "#undef %s\n", state->ex_states[state->i]);
+>}
 
 YYMORE_V int yymore(void) {
 	yyappend = 1;
