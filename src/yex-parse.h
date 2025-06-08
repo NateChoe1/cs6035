@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 
+#include "sb.h"
 #include "arena.h"
 
 struct yex_parse_state {
@@ -19,6 +20,9 @@ struct yex_parse_state {
 	char pr_c[4];
 	int pr_i;
 	int pr_l;
+
+	/* parse_rules_closed state */
+	struct sb *sb;
 
 	/* global state */
 	long i;

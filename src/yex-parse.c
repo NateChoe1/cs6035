@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "sb.h"
 #include "utils.h"
 #include "arena.h"
 #include "strmap.h"
@@ -23,7 +24,8 @@ static int read_states(struct arena *arena,
 /* rules section parse functions */
 static int parse_rules(struct yex_parse_state *state, int c);
 static int parse_rules_closed(struct yex_parse_state *state, int c);
-static char *read_ere(struct arena *arena, char *ere, char **endptr);
+static char *read_ere(struct sb *sb, char *ere, struct strmap *substs);
+static long read_subst(struct sb *sb, char *ere, struct strmap *substs);
 static int read_escape(char *s, char *ret);
 static int read_octal(char *s, char *ret);
 static int read_hex(char *s, char *ret);
@@ -180,7 +182,7 @@ static int parse_substitution(struct yex_parse_state *state) {
 	/* add substitution */
 	strmap_put(state->substitutions, name, subst);
 
-	return 0;
+	return -1;
 }
 
 static int read_states(struct arena *arena,
@@ -292,33 +294,37 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 	COROUTINE_START(state->parse_rules_closed_progress);
 
 	for (;;) {
-		COROUTINE_GETC;
-		if (c == COROUTINE_EOF) {
+		COROUTINE_GETL;
+
+		state->sb = sb_new(state->arena);
+		if (read_ere(state->sb, state->line, state->substitutions)
+				== NULL) {
+			fputs("Failed to read regex\n", stderr);
+			COROUTINE_RET(1);
+		}
+		puts(sb_read(state->sb));
+
+		if (state->eof) {
 			break;
 		}
-		putchar(c);
 	}
 
 	COROUTINE_RET(-1);
 	COROUTINE_END;
 }
 
-static char *read_ere(struct arena *arena, char *ere, char **endptr) {
-	char *ret;
-	long i, d, len, alloc;
+/* returns the end of the regex/the start of the definition
+ *
+ * returns NULL on error
+ * */
+static char *read_ere(struct sb *sb, char *ere, struct strmap *substs) {
+	long i, d;
 	int in_q;
+	char c;
 
-	alloc = 32;
-	ret = arena_malloc(arena, alloc);
-	len = 0;
 	in_q = 0;
 
 	for (i = 0;; ++i) {
-		if (len >= alloc) {
-			alloc *= 2;
-			ret = arena_realloc(arena, alloc);
-		}
-
 		if (ere[i] == '\0') {
 			break;
 		}
@@ -331,16 +337,25 @@ static char *read_ere(struct arena *arena, char *ere, char **endptr) {
 			continue;
 		}
 
-		if (ere[i] != '\\') {
-			ret[len] = ere[i];
+		if (ere[i] == '{') {
+			d = read_subst(sb, ere+i, substs);
+			if (d == 0) {
+				return NULL;
+			}
+			i += d-1;
 			continue;
 		}
 
-		d = read_escape(ere+i, &ret[len]);
+		if (ere[i] != '\\') {
+			sb_append(sb, ere[i]);
+			continue;
+		}
+
+		d = read_escape(ere+i, &c);
 		if (d == 0) {
 			return NULL;
 		}
-		++len;
+		sb_append(sb, c);
 		i += d-1;
 	}
 
@@ -348,12 +363,53 @@ static char *read_ere(struct arena *arena, char *ere, char **endptr) {
 		return NULL;
 	}
 
-	if (endptr != NULL) {
-		*endptr = ere + len;
-	}
-	return ret;
+	return ere + i;
 }
 
+/* parses the first substitution in ere, returns 0 on error
+ *
+ * for example, if ere == "{digit}", and "digit" was a substitution defined
+ * earlier, this function will append ([0-9]) to sb, or whatever the actual
+ * regex was */
+static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
+	long d;
+	char *k, *v;
+
+	for (d = 0; ere[d] != '\0' && ere[d] != '}'; ++d) ;
+
+	if (ere[d] == '\0') {
+		return 0;
+	}
+
+	++d;
+	k = xmalloc(d-1);
+	memcpy(k, ere+1, d-2);
+	k[d-2] = '\0';
+
+	v = strmap_get(substs, k);
+	if (v == NULL) {
+		d = 0;
+		goto end;
+	}
+
+	sb_append(sb, '(');
+	if (read_ere(sb, v, substs) == NULL) {
+		d = 0;
+		goto end;
+	}
+	sb_append(sb, ')');
+
+end:
+	free(k);
+	return d;
+}
+
+/* returns the length of the escaped character at the beginning of s, as well as
+ * its literal value in *ret
+ *
+ * for example, if s == "\\n", this function sets *ret to '\n' and returns 2
+ *
+ * returns 0 on error */
 static int read_escape(char *s, char *ret) {
 	int d;
 

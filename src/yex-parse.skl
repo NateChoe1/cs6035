@@ -1,5 +1,5 @@
 fputs("
-", output);
+\n", output);
 >/* vim: syntax=c
 >*/
 >int yex_parse_char(struct yex_parse_state *state, int c, FILE *output) {
