@@ -125,8 +125,7 @@ static int yyinput(void); /* gets an input and writes it to yytext */
 static void yyfix_start(void);
 
 /* state definitions */
-#define INITIAL 0
->state->j = 1;
+>state->j = 0;
 >for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
 >	fprintf(output, "#define %s %ld\n",
 >			state->sh_states[state->i], state->j++);
@@ -153,7 +152,6 @@ YYLEX_V int yylex(void) {
 #undef BEGIN
 #undef ECHO
 
-#undef INITIAL
 >for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
 >	fprintf(output, "#undef %s\n", state->sh_states[state->i]);
 >}

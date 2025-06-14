@@ -18,6 +18,8 @@ struct yex_parse_rule {
 
 	struct regex *re_dfa;
 	struct regex *trail_dfa;
+
+	char *states;
 };
 
 struct yex_parse_state {

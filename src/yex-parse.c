@@ -52,6 +52,7 @@ static int parse_definitions(struct yex_parse_state *state,
 	state->sh_states_alloc = 32;
 	state->sh_states = arena_malloc(state->arena,
 			state->sh_states_alloc * sizeof(*state->sh_states));
+	state->sh_states[state->sh_states_count++] = "INITIAL";
 
 	state->ex_states_count = 0;
 	state->ex_states_alloc = 32;
@@ -429,6 +430,22 @@ static int read_ere_help(struct yex_parse_rule *rule, struct sb *sb,
 		rule->re = NULL;
 		rule->trail = NULL;
 		rule->anchored = 0;
+		rule->states = NULL;
+	}
+
+	if (rule != NULL && ere[0] == '<') {
+		rule->states = ++ere;
+		for (;;) {
+			++ere;
+			if (*ere == '\0') {
+				return 1;
+			}
+			if (*ere == '>') {
+				*ere = '\0';
+				break;
+			}
+		}
+		++ere;
 	}
 
 	if (ere[0] == '^') {
