@@ -1,7 +1,5 @@
 fputs("
 \n", output);
->/* vim: syntax=c
->*/
 >static void write_states(struct yex_parse_state *state, long rule,
 >		FILE *output);
 >int yex_parse_char(struct yex_parse_state *state, int c, FILE *output) {
@@ -97,14 +95,14 @@ fputs("
 #endif
 
 >if (state->yytext_type == POINTER) {
-	static char yytext_data[YYTEXT_SIZE]
+	static char yytext_data[YYTEXT_SIZE];
 	YYTEXT_V char *yytext = yytext_data;
 >} else {
-	YYTEXT_V char yytext[YYTEXT_SIZE]
+	YYTEXT_V char yytext[YYTEXT_SIZE];
 >}
 
 YYLENG_V int yyleng = 0;
-YYIN_V FILE *yyin = stdin;
+YYIN_V FILE *yyin = NULL;
 
 /* circular buffer to store read data */
 static unsigned char yybuf[YYTEXT_SIZE];
@@ -166,7 +164,7 @@ YYLEX_V int yylex(void) {
 >for (state->i = 0; state->i < state->rules_count; ++state->i) {
 		switch (yystate) {
 >	write_states(state, state->i, output);
->	fprintf(output, "switch (state_%ld:) {\n", (long) state->i);
+>	fprintf(output, "switch (state_%ld) {\n", (long) state->i);
 
 >#define this_dfa (state->rules[state->i]->re_dfa)
 >	for (state->j = 0; (long) state->j < this_dfa->num_nodes; ++state->j) {
@@ -185,27 +183,20 @@ YYLEX_V int yylex(void) {
 >					state->t);
 >			fputs("break;\n", output);
 >		}
+				}
 >	}
 				default:
 >fprintf(output, "state_%ld = -1;\n", state->i);
 					break;
-				}
->}
->#undef this_dfa
 			}
 		}
+>}
+>#undef this_dfa
 	}
 }
 
 #undef BEGIN
 #undef ECHO
-
->for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
->	fprintf(output, "#undef %s\n", state->sh_states[state->i]);
->}
->for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
->	fprintf(output, "#undef %s\n", state->ex_states[state->i]);
->}
 
 YYMORE_V int yymore(void) {
 	yyappend = 1;
@@ -220,7 +211,7 @@ YYLESS_V int yyless(int n) {
 	}
 
 	for (i = yyleng-1; i >= n; --i) {
-		r = unputc(yytext[i]);
+		r = unput(yytext[i]);
 		if (r != YYERROR_SUCCESS) {
 			return r;
 		}
@@ -269,7 +260,7 @@ YYUNPUT_V int unput(int c) {
 YYRESET_V int yyreset(void) {
 	yybuf_start = 0;
 	yybuf_len = 0;
-	yystate = YYSTATE_DEFAULT;
+	yystate = INITIAL;
 	yyappend = 0;
 	yyanchor = 1;
 	return YYERROR_SUCCESS;
@@ -292,6 +283,13 @@ static void yyfix_start(void) {
 		yybuf_start += YYTEXT_SIZE;
 	}
 }
+
+>for (state->i = 0; state->i < state->sh_states_count; ++state->i) {
+>	fprintf(output, "#undef %s\n", state->sh_states[state->i]);
+>}
+>for (state->i = 0; state->i < state->ex_states_count; ++state->i) {
+>	fprintf(output, "#undef %s\n", state->ex_states[state->i]);
+>}
 
 /* user subroutines */
 >for (;;) {
