@@ -19,12 +19,15 @@ static int parse_definitions(struct yex_parse_state *state,
 static int parse_definition_line(struct yex_parse_state *state, FILE *output);
 static int parse_substitution(struct yex_parse_state *state);
 static int read_states(struct arena *arena,
-		char *line, char ***states, long *len, long *alloc);
+		char *line, char ***states, size_t *len, size_t *alloc);
 
 /* rules section parse functions */
 static int parse_rules(struct yex_parse_state *state, int c);
 static int parse_rules_closed(struct yex_parse_state *state, int c);
-static char *read_ere(struct sb *sb, char *ere, struct strmap *substs);
+static struct yex_parse_rule *read_ere(struct arena *arena,
+		char *ere, struct strmap *substs);
+static int read_ere_help(struct yex_parse_rule *rule, struct sb *sb,
+		char *ere, struct strmap *substs);
 static long read_subst(struct sb *sb, char *ere, struct strmap *substs);
 static int read_escape(char *s, char *ret);
 static int read_octal(char *s, char *ret);
@@ -190,7 +193,7 @@ static int parse_substitution(struct yex_parse_state *state) {
 }
 
 static int read_states(struct arena *arena,
-		char *line, char ***states, long *len, long *alloc) {
+		char *line, char ***states, size_t *len, size_t *alloc) {
 	long i;
 	char *name;
 
@@ -231,6 +234,11 @@ static int read_states(struct arena *arena,
 
 static int parse_rules(struct yex_parse_state *state, int c) {
 	COROUTINE_START(state->parse_rules_progress);
+
+	state->rules_count = 0;
+	state->rules_alloc = 32;
+	state->rules = arena_malloc(state->arena,
+			state->rules_alloc * sizeof(*state->rules));
 
 	for (state->pr_l = 0; state->pr_l < 4; ++state->pr_l) {
 		COROUTINE_GETC;
@@ -304,13 +312,25 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 			goto skip_parse;
 		}
 
-		state->sb = sb_new(state->arena);
-		if (read_ere(state->sb, state->line, state->substitutions)
-				== NULL) {
+		if (state->rules_count >= state->rules_alloc) {
+			state->rules_alloc *= 2;
+			state->rules = arena_realloc(state->rules,
+					state->rules_alloc *
+					sizeof(*state->rules));
+		}
+
+		state->rules[state->rules_count] = read_ere(state->arena,
+				state->line, state->substitutions);
+		if (state->rules[state->rules_count] == NULL) {
 			fputs("Failed to read regex\n", stderr);
 			COROUTINE_RET(1);
 		}
-		puts(sb_read(state->sb));
+
+		printf("%d %s\t%s\n", state->rules[state->rules_count]->anchored,
+				state->rules[state->rules_count]->re,
+				state->rules[state->rules_count]->trail);
+
+		++state->rules_count;
 
 skip_parse:
 		if (state->eof) {
@@ -322,16 +342,45 @@ skip_parse:
 	COROUTINE_END;
 }
 
-/* returns the end of the regex/the start of the definition
+static struct yex_parse_rule *read_ere(struct arena *arena,
+		char *ere, struct strmap *substs) {
+	struct sb *sb;
+	struct yex_parse_rule *ret;
+
+	sb = sb_new(arena);
+	ret = arena_malloc(arena, sizeof(*ret));
+
+	if (read_ere_help(ret, sb, ere, substs)) {
+		return NULL;
+	}
+
+	return ret;
+}
+
+/* appends an ere to `sb` and writes to `rule`
  *
- * returns NULL on error
+ * if rule is NULL, then we assume that we're reading a substitution and throw
+ * an error on anchors, trailing context, and extra characters after our regex
+ *
+ * returns 1 on error, 0 on success
  * */
-static char *read_ere(struct sb *sb, char *ere, struct strmap *substs) {
+static int read_ere_help(struct yex_parse_rule *rule, struct sb *sb,
+		char *ere, struct strmap *substs) {
 	long i, d;
 	int in_q;
 	char c;
 
 	in_q = 0;
+
+	if (ere[0] == '^') {
+		if (rule == NULL) {
+			return 1;
+		}
+		rule->anchored = 1;
+		++ere;
+	} else if (rule != NULL) {
+		rule->anchored = 0;
+	}
 
 	for (i = 0;; ++i) {
 		if (ere[i] == '\0') {
@@ -352,31 +401,55 @@ static char *read_ere(struct sb *sb, char *ere, struct strmap *substs) {
 			case 0:
 				goto not_subst;
 			case -1:
-				return NULL;
+				return 1;
 			}
 			i += d-1;
 			continue;
 		}
 not_subst:
 
-		if (ere[i] != '\\') {
+		switch (ere[i]) {
+		case '$':
+			if (rule == NULL) {
+				return 1;
+			}
+			rule->trail = "\n";
+			continue;
+		case '/':
+			if (rule == NULL) {
+				return 1;
+			}
+			sb_append(sb, '\0');
+			rule->trail = sb_read(sb) + sb->len;
+			continue;
+		case '\\':
+			break;
+		default:
 			sb_append(sb, ere[i]);
 			continue;
 		}
 
 		d = read_escape(ere+i, &c);
 		if (d == 0) {
-			return NULL;
+			return 1;
 		}
 		sb_append(sb, c);
 		i += d-1;
 	}
 
 	if (in_q) {
-		return NULL;
+		return 1;
 	}
 
-	return ere + i;
+	if (rule == NULL && ere[i] != '\0') {
+		return 1;
+	}
+	if (rule != NULL) {
+		rule->re = sb_read(sb);
+		rule->action = ere + i;
+	}
+
+	return 0;
 }
 
 /* parses the first substitution in ere, returns 0 on error
@@ -386,7 +459,7 @@ not_subst:
  * regex was */
 static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
 	long d;
-	char *k, *v, *e;
+	char *k, *v;
 
 	for (d = 0; ere[d] != '\0' && ere[d] != '}'; ++d) ;
 
@@ -406,8 +479,7 @@ static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
 	}
 
 	sb_append(sb, '(');
-	e = read_ere(sb, v, substs);
-	if (e == NULL || *e != '\0') {
+	if (read_ere_help(NULL, sb, v, substs)) {
 		fprintf(stderr, "Error while expanding substition `%s`\n", k);
 		d = -1;
 		goto end;

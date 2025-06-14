@@ -8,8 +8,8 @@
 struct sb {
 	struct arena *arena;
 	char *data;
-	long len;
-	long alloc;
+	size_t len;
+	size_t alloc;
 };
 
 struct sb *sb_new(struct arena *arena);

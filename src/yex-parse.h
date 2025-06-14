@@ -6,6 +6,16 @@
 #include "sb.h"
 #include "arena.h"
 
+struct yex_parse_rule {
+	char *re;       /* the regex itself */
+	char *trail;    /* the trailing context. for example, if the regex ends
+			   with '$', then this is "\n". if there is no trailing
+			   context, then this is NULL. */
+	int anchored;   /* 1 if the regex starts with '^' */
+
+	char *action;
+};
+
 struct yex_parse_state {
 	/* progress state */
 	int parse_char_progress;
@@ -25,7 +35,7 @@ struct yex_parse_state {
 	struct sb *sb;
 
 	/* global state */
-	long i, j;
+	size_t i, j;
 	int ret;
 	int eof;
 	char line[512];
@@ -44,13 +54,18 @@ struct yex_parse_state {
 
 	/* shared states, defined with %s */
 	char **sh_states;
-	long sh_states_count;
-	long sh_states_alloc;
+	size_t sh_states_count;
+	size_t sh_states_alloc;
 
 	/* exclusive states, defined with %x*/
 	char **ex_states;
-	long ex_states_count;
-	long ex_states_alloc;
+	size_t ex_states_count;
+	size_t ex_states_alloc;
+
+	/* rules */
+	struct yex_parse_rule **rules;
+	size_t rules_count;
+	size_t rules_alloc;
 };
 
 /* this is a coroutine, see coroutine.h */
