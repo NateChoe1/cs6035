@@ -5,6 +5,7 @@
 
 #include "sb.h"
 #include "arena.h"
+#include "regex.h"
 
 struct yex_parse_rule {
 	char *re;       /* the regex itself */

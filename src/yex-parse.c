@@ -360,10 +360,6 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 
 action_1line:
 		this_rule->action = sb_read(state->sb);
-
-		puts("-----");
-		puts(this_rule->action);
-		puts("-----");
 #undef this_action
 
 		++state->rules_count;
@@ -619,15 +615,3 @@ static int read_hex(char *s, char *ret) {
 }
 
 /* end of rules section parse definitions */
-
-/* shutting up gcc warnings */
-static void shutup2(void);
-static void shutup1(void) {
-	shutup2();
-	read_ere(NULL, NULL, NULL);
-	parse_rules(NULL, 0);
-	parse_substitution(NULL);
-}
-static void shutup2(void) {
-	shutup1();
-}
