@@ -2,6 +2,8 @@ fputs("
 \n", output);
 >/* vim: syntax=c
 >*/
+>static void write_states(struct yex_parse_state *state, long rule,
+>		FILE *output);
 >int yex_parse_char(struct yex_parse_state *state, int c, FILE *output) {
 >COROUTINE_START(state->parse_char_progress);
 >state->arena = arena_new();
@@ -134,21 +136,67 @@ static void yyfix_start(void);
 >	fprintf(output, "#define %s %ld\n",
 >			state->ex_states[state->i], state->j++);
 >}
-int yystate = INITIAL;
+static int yystate = INITIAL;
 
 #define YYERROR_SUCCESS 0
 #define YYERROR_BUFF_FULL 1
 #define YYERROR_INV_ARG 2
 
 /* boolean indicating that yymore was called */
-int yyappend = 0;
+static int yyappend = 0;
 
-#define YYSTATEIFY(state) YYSTATE_##state
+/* boolean indicating that '^' anchors should be matched */
+static int yyanchor = 1;
 
 #define BEGIN yystate =
 #define ECHO fputs(yytext, stdout)
+
 YYLEX_V int yylex(void) {
+	int ch;
+
+>for (state->i = 0; state->i < state->rules_count; ++state->i) {
+>	/* dfa states */
+>	fprintf(output, "long state_%ld = 0;\n", (long) state->i);
+>	/* match lengths */
+>	fprintf(output, "int mlen_%ld = -1;\n", (long) state->i);
+>}
+
+	for (;;) {
+		ch = yyinput();
+>for (state->i = 0; state->i < state->rules_count; ++state->i) {
+		switch (yystate) {
+>	write_states(state, state->i, output);
+>	fprintf(output, "switch (state_%ld:) {\n", (long) state->i);
+
+>#define this_dfa (state->rules[state->i]->re_dfa)
+>	for (state->j = 0; (long) state->j < this_dfa->num_nodes; ++state->j) {
+>		fprintf(output, "case %ld:\n", (long) state->j);
+				switch (ch) {
+
+>		for (state->k = 0; (long) state->k < this_dfa->num_items;
+>					++state->k) {
+>			state->t = this_dfa->nodes[state->j].links[state->k];
+>			if (state->t == -1) {
+>				continue;
+>			}
+>			fprintf(output, "case %ld:\n", state->k);
+>			fprintf(output, "state_%ld = %ld;\n",
+>					(long) state->i,
+>					state->t);
+>			fputs("break;\n", output);
+>		}
+>	}
+				default:
+>fprintf(output, "state_%ld = -1;\n", state->i);
+					break;
+				}
+>}
+>#undef this_dfa
+			}
+		}
+	}
 }
+
 #undef BEGIN
 #undef ECHO
 
@@ -223,6 +271,7 @@ YYRESET_V int yyreset(void) {
 	yybuf_len = 0;
 	yystate = YYSTATE_DEFAULT;
 	yyappend = 0;
+	yyanchor = 1;
 	return YYERROR_SUCCESS;
 }
 
@@ -259,4 +308,34 @@ static void yyfix_start(void) {
 >state->arena = NULL;
 >COROUTINE_RET(state->ret);
 >COROUTINE_END;
+>}
+>
+>static void write_states(struct yex_parse_state *state, long rule,
+>		FILE *output) {
+>	struct yex_parse_rule *r;
+>	size_t i;
+>	char *s;
+>
+>	r = state->rules[rule];
+>
+>	if (r->states == NULL) {
+>		for (i = 0; i < state->sh_states_count; ++i) {
+>			fprintf(output, "case %s:\n", state->sh_states[i]);
+>		}
+>		return;
+>	}
+>
+>	s = r->states;
+>
+>	while (*s != '\0') {
+>		fputs("case ", output);
+>		while (*s != '\0' && *s != ',') {
+>			fputc(*s, output);
+>			++s;
+>		}
+>		fputs(":\n", output);
+>		if (*s == ',') {
+>			++s;
+>		}
+>	}
 >}

@@ -5,7 +5,7 @@
 
 #include "sb.h"
 #include "arena.h"
-#include "regex.h"
+#include "dfa.h"
 
 struct yex_parse_rule {
 	char *re;       /* the regex itself */
@@ -16,8 +16,8 @@ struct yex_parse_rule {
 
 	char *action;
 
-	struct regex *re_dfa;
-	struct regex *trail_dfa;
+	struct dfa *re_dfa;
+	struct dfa *trail_dfa;
 
 	char *states;
 };
@@ -42,7 +42,8 @@ struct yex_parse_state {
 	long bc;
 
 	/* global state */
-	size_t i, j;
+	size_t i, j, k;
+	long t;
 	int ret;
 	int eof;
 	char line[512];

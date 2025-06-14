@@ -5,6 +5,7 @@
 #include "sb.h"
 #include "utils.h"
 #include "arena.h"
+#include "regex.h"
 #include "strmap.h"
 #include "yex-parse.h"
 #include "coroutine.h"
@@ -373,7 +374,7 @@ skip_parse:
 
 	for (state->i = 0; state->i < state->rules_count; ++state->i) {
 #define this_action (state->rules[state->i])
-		this_action->re_dfa =
+		this_action->re_dfa = (struct dfa *)
 			regex_compile(state->arena, this_action->re);
 		if (this_action->re_dfa == NULL) {
 			fputs("Failed to compile regex\n", stderr);
@@ -383,7 +384,7 @@ skip_parse:
 			this_action->trail_dfa = NULL;
 			continue;
 		}
-		this_action->trail_dfa =
+		this_action->trail_dfa = (struct dfa *)
 			regex_compile(state->arena, this_action->trail);
 		if (this_action->trail_dfa == NULL) {
 			fputs("Failed to compile trailing context\n", stderr);
