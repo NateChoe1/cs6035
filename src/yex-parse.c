@@ -319,19 +319,54 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 					sizeof(*state->rules));
 		}
 
-		state->rules[state->rules_count] = read_ere(state->arena,
+#define this_rule (state->rules[state->rules_count])
+		this_rule = read_ere(state->arena,
 				state->line, state->substitutions);
-		if (state->rules[state->rules_count] == NULL) {
+		if (this_rule == NULL) {
 			fputs("Failed to read regex\n", stderr);
 			COROUTINE_RET(1);
 		}
 
-		printf("%d %s\t%s\n", state->rules[state->rules_count]->anchored,
-				state->rules[state->rules_count]->re,
-				state->rules[state->rules_count]->trail);
+		state->sb = sb_new(state->arena);
+		state->bc = 0;
+		for (state->i = 0; this_rule->action[state->i]; ++state->i) {
+			sb_append(state->sb, this_rule->action[state->i]);
+
+			state->bc += this_rule->action[state->i] == '{';
+			state->bc -= this_rule->action[state->i] == '}';
+		}
+
+		if (state->bc < 0) {
+			return 1;
+		}
+
+		sb_append(state->sb, '\n');
+
+		if (state->bc == 0) {
+			goto action_1line;
+		}
+
+		for (;;) {
+			COROUTINE_GETC;
+			if ((c == COROUTINE_EOF || c == '\n')
+					&& state->bc == 0) {
+				break;
+			}
+			sb_append(state->sb, c);
+			state->bc += c == '{';
+			state->bc -= c == '}';
+		}
+		sb_append(state->sb, '\n');
+
+action_1line:
+		this_rule->action = sb_read(state->sb);
+
+		puts("-----");
+		puts(this_rule->action);
+		puts("-----");
+#undef this_action
 
 		++state->rules_count;
-
 skip_parse:
 		if (state->eof) {
 			break;

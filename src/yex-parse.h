@@ -33,6 +33,7 @@ struct yex_parse_state {
 
 	/* parse_rules_closed state */
 	struct sb *sb;
+	long bc;
 
 	/* global state */
 	size_t i, j;
