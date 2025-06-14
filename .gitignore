@@ -4,3 +4,5 @@
 /build
 /src/*.comp
 *.swp
+/test.l
+/lex.yy.c

@@ -84,7 +84,8 @@ static int write_output(char **inputs, FILE *output, int verbose) {
 		}
 	}
 
-	if (yex_parse_char(&state, COROUTINE_EOF, output) != 0) {
+	if (yex_parse_char(&state, COROUTINE_EOF, output) != -1) {
+		fputs("An error occured during parsing.\n", stderr);
 		return 1;
 	}
 

@@ -35,7 +35,7 @@
 	((void) u)
 #define COROUTINE_END } do { return 1; } while (0)
 #define COROUTINE_GETC do { \
-	if (!u) { \
+	if (!u && c != COROUTINE_EOF) { \
 		*p = __LINE__; \
 		return 0; \
 		case __LINE__: \

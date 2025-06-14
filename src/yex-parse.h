@@ -15,6 +15,9 @@ struct yex_parse_rule {
 	int anchored;   /* 1 if the regex starts with '^' */
 
 	char *action;
+
+	struct regex *re_dfa;
+	struct regex *trail_dfa;
 };
 
 struct yex_parse_state {

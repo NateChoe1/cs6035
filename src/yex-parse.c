@@ -360,6 +360,7 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 
 action_1line:
 		this_rule->action = sb_read(state->sb);
+
 #undef this_action
 
 		++state->rules_count;
@@ -367,6 +368,27 @@ skip_parse:
 		if (state->eof) {
 			break;
 		}
+	}
+
+	for (state->i = 0; state->i < state->rules_count; ++state->i) {
+#define this_action (state->rules[state->i])
+		this_action->re_dfa =
+			regex_compile(state->arena, this_action->re);
+		if (this_action->re_dfa == NULL) {
+			fputs("Failed to compile regex\n", stderr);
+			COROUTINE_RET(1);
+		}
+		if (this_action->trail == NULL) {
+			this_action->trail_dfa = NULL;
+			continue;
+		}
+		this_action->trail_dfa =
+			regex_compile(state->arena, this_action->trail);
+		if (this_action->trail_dfa == NULL) {
+			fputs("Failed to compile trailing context\n", stderr);
+			COROUTINE_RET(1);
+		}
+#undef this_action
 	}
 
 	COROUTINE_RET(-1);
@@ -403,14 +425,18 @@ static int read_ere_help(struct yex_parse_rule *rule, struct sb *sb,
 
 	in_q = 0;
 
+	if (rule != NULL) {
+		rule->re = NULL;
+		rule->trail = NULL;
+		rule->anchored = 0;
+	}
+
 	if (ere[0] == '^') {
 		if (rule == NULL) {
 			return 1;
 		}
 		rule->anchored = 1;
 		++ere;
-	} else if (rule != NULL) {
-		rule->anchored = 0;
 	}
 
 	for (i = 0;; ++i) {

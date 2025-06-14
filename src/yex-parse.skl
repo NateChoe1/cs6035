@@ -255,8 +255,10 @@ static void yyfix_start(void) {
 >	fputc(c, output);
 >}
 
+>state->ret = -1;
 >ret:
 >arena_free(state->arena);
+>state->arena = NULL;
 >COROUTINE_RET(state->ret);
 >COROUTINE_END;
 >}
