@@ -33,6 +33,7 @@ static long read_subst(struct sb *sb, char *ere, struct strmap *substs);
 static int read_escape(char *s, char *ret);
 static int read_octal(char *s, char *ret);
 static int read_hex(char *s, char *ret);
+static int is_skip(char *s);
 
 /* yex_parse_char is defined here */
 #include "yex-parse.skl.comp"
@@ -362,6 +363,9 @@ static int parse_rules_closed(struct yex_parse_state *state, int c) {
 
 action_1line:
 		this_rule->action = sb_read(state->sb);
+		if (is_skip(this_rule->action)) {
+			this_rule->action = NULL;
+		}
 
 #undef this_action
 
@@ -656,6 +660,22 @@ static int read_hex(char *s, char *ret) {
 	*ret = (char) v;
 
 	return i;
+}
+
+static int is_skip(char *s) {
+	while (*s != '\0' && isspace(*s)) {
+		++s;
+	}
+
+	if (*s++ != '|') {
+		return 0;
+	}
+
+	while (*s != '\0' && isspace(*s)) {
+		++s;
+	}
+
+	return *s == '\0';
 }
 
 /* end of rules section parse definitions */
