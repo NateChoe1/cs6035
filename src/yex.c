@@ -89,9 +89,14 @@ static int write_output(char **inputs, FILE *output, int verbose) {
 		return 1;
 	}
 
-	/* TODO: print summary if verbose */
-	(void) verbose;
+	if (!verbose) {
+		goto ret;
+	}
 
+	fputs("Yex summary:\n", stderr);
+	fprintf(stderr, "  Total rules: %ld\n", (long) state.rules_count);
+
+ret:
 	return 0;
 }
 
