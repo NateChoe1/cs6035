@@ -159,7 +159,7 @@ static int yyanchor = 1;
 #define YYCAT(a, b) YYCAT1(a, b)
 
 static int yylex1(void) {
-	int r, ch, mlen, mid, tch, tlen, bf;
+	int r, ch, mlen, mid, tch, tlen, bf, ab;
 
 	/* state for trailing context */
 	long state_t;
@@ -169,6 +169,8 @@ static int yylex1(void) {
 		return -r; \
 	} \
 } while (0)
+
+	ab = yyanchor;
 
 >for (state->i = 0; state->i < state->rules_count; ++state->i) {
 >	/* dfa states */
@@ -291,6 +293,7 @@ YYCAT(yypc, YYIDX):
 
 yyreject:
 	YYREWIND(0);
+	yyanchor = ab;
 yyskip:
 	return yylex1();
 #undef YYREWIND
