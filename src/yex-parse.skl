@@ -253,7 +253,30 @@ YYCAT(pc, YYIDX):
 
 	yyanchor = yytext[yyleng-1] == '\n';
 
-	return mid+1;
+	switch (mid) {
+
+>state->j = 0;
+>for (state->i = 0; state->i < state->rules_count; ++state->i) {
+>	fprintf(output, "case %ld:\n", (long) state->i);
+>	if (state->rules[state->i]->action != NULL) {
+>		fputs(state->rules[state->i]->action, output);
+>		fputs("break;\n", output);
+>		state->j = 0;
+>	} else {
+>		state->j = 1;
+>	}
+>}
+>if (state->j) {
+>	fputs("Final rule is the skip action\n", stderr);
+>	state->ret = 1;
+>	goto ret;
+>}
+
+	default:
+		return 0;
+	}
+
+	return yylex();
 #undef YYREWIND
 }
 
