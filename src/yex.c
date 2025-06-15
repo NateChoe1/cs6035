@@ -89,7 +89,7 @@ static int write_output(char **inputs, FILE *output, int verbose) {
 		return 1;
 	}
 
-	if (!verbose) {
+	if (output == stdout || !verbose) {
 		goto ret;
 	}
 
