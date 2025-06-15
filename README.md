@@ -105,6 +105,8 @@ occurred.
 Defining a visibility macro as anything other than `static` or the empty string
 is undefined behavior. No `const int yyleng`, for example.
 
+`yylex` may return a negative number on error.
+
 ## Lacc
 
 Lacc is a parser generator. It's also pretty dumb. To invoke it just run

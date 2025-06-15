@@ -2,6 +2,8 @@ fputs("
 \n", output);
 >static void write_states(struct yex_parse_state *state, long rule,
 >		FILE *output);
+>static void write_transition(struct dfa *dfa, char *ch,
+>		char *state, char *accept, FILE *output);
 >int yex_parse_char(struct yex_parse_state *state, int c, FILE *output) {
 >COROUTINE_START(state->parse_char_progress);
 >state->arena = arena_new();
@@ -40,6 +42,7 @@ fputs("
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 /* visibility macros, may be overwritten by the definitions section */
 #ifndef YYLEX_V
@@ -101,7 +104,7 @@ fputs("
 	YYTEXT_V char yytext[YYTEXT_SIZE];
 >}
 
-YYLENG_V int yyleng = 0;
+YYLENG_V int yyleng;
 YYIN_V FILE *yyin = NULL;
 
 /* circular buffer to store read data */
@@ -139,6 +142,7 @@ static int yystate = INITIAL;
 #define YYERROR_SUCCESS 0
 #define YYERROR_BUFF_FULL 1
 #define YYERROR_INV_ARG 2
+#define YYERROR_NO_MATCH 3
 
 /* boolean indicating that yymore was called */
 static int yyappend = 0;
@@ -148,55 +152,106 @@ static int yyanchor = 1;
 
 #define BEGIN yystate =
 #define ECHO fputs(yytext, stdout)
+#define YYCAT1(a, b) a ## b
+#define YYCAT(a, b) YYCAT1(a, b)
 
 YYLEX_V int yylex(void) {
-	int ch;
+	int r, ch, mlen, mid, tch, tlen, bf;
+
+	/* state for trailing context */
+	long state_t;
+
+#define YYREWIND(len) do { \
+	if ((r = yyless(len)) != YYERROR_SUCCESS) { \
+		return -r; \
+	} \
+} while (0)
 
 >for (state->i = 0; state->i < state->rules_count; ++state->i) {
 >	/* dfa states */
 >	fprintf(output, "long state_%ld = 0;\n", (long) state->i);
->	/* match lengths */
->	fprintf(output, "int mlen_%ld = -1;\n", (long) state->i);
 >}
+
+	mlen = mid = -1;
+	yyleng = 0;
 
 	for (;;) {
 		ch = yyinput();
+		if (ch < 0) {
+			return ch;
+		}
+
+		/* 1 if every regex is in the shadow realm and can't be matched
+		 * anymore, 0 otherwise  */
+		bf = 1;
 >for (state->i = 0; state->i < state->rules_count; ++state->i) {
+>	fprintf(output, "#define YYIDX %ld\n", (long) state->i);
 		switch (yystate) {
 >	write_states(state, state->i, output);
->	fprintf(output, "switch (state_%ld) {\n", (long) state->i);
-
->#define this_dfa (state->rules[state->i]->re_dfa)
->	for (state->j = 0; (long) state->j < this_dfa->num_nodes; ++state->j) {
->		fprintf(output, "case %ld:\n", (long) state->j);
-				switch (ch) {
-
->		for (state->k = 0; (long) state->k < this_dfa->num_items;
->					++state->k) {
->			state->t = this_dfa->nodes[state->j].links[state->k];
->			if (state->t == -1) {
->				continue;
->			}
->			fprintf(output, "case %ld:\n", state->k);
->			fprintf(output, "state_%ld = %ld;\n",
->					(long) state->i,
->					state->t);
->			fputs("break;\n", output);
->		}
-				}
->	}
-				default:
->fprintf(output, "state_%ld = -1;\n", state->i);
-					break;
+>	if (state->rules[state->i]->anchored) {
+			if (!yyanchor) {
+				break;
 			}
+>	}
+>	sprintf(state->line, "state_%ld", state->i);
+>	sprintf(state->line + sizeof(state->line)/2, "accept%ld", state->i);
+>	write_transition(state->rules[state->i]->re_dfa,
+>		"ch", state->line, state->line + sizeof(state->line)/2, output);
+			goto YYCAT(pc, YYIDX);
+YYCAT(accept, YYIDX):
+			/* reject short matches */
+			if (yyleng <= mlen) {
+				goto YYCAT(pc, YYIDX);
+			}
+>	if (state->rules[state->i]->trail_dfa != NULL) {
+>		sprintf(state->line, "accept_t%ld", state->i);
+			/* match trailing context */
+			state_t = 0;
+			tlen = yyleng;
+			for (;;) {
+				tch = yyinput();
+				if (tch < 0) {
+					return ch;
+				}
+>		write_transition(state->rules[state->i]->trail_dfa,
+>				"tch", "state_t", state->line, output);
+				if (state_t == -1) {
+					break;
+				}
+			}
+			YYREWIND(tlen);
+			goto YYCAT(pc, YYIDX);
+YYCAT(accept_t, YYIDX):
+			YYREWIND(tlen);
+>	}
+			mid = YYIDX;
+			mlen = yyleng;
+YYCAT(pc, YYIDX):
+			if (YYCAT(state_, YYIDX) != -1) {
+				bf = 0;
+			}
+#undef YYIDX
 		}
 >}
->#undef this_dfa
+		if (bf) {
+			break;
+		}
 	}
+	if (mlen <= 0 || mid < 0) {
+		return -YYERROR_NO_MATCH;
+	}
+	YYREWIND(mlen);
+
+	yyanchor = yytext[yyleng-1] == '\n';
+
+	return mid;
+#undef YYREWIND
 }
 
 #undef BEGIN
 #undef ECHO
+#undef YYCAT1
+#undef YYCAT
 
 YYMORE_V int yymore(void) {
 	yyappend = 1;
@@ -206,7 +261,7 @@ YYMORE_V int yymore(void) {
 YYLESS_V int yyless(int n) {
 	int i, r;
 
-	if (n < 0 || n >= yyleng) {
+	if (n < 0 || n > yyleng) {
 		return YYERROR_INV_ARG;
 	}
 
@@ -217,6 +272,7 @@ YYLESS_V int yyless(int n) {
 		}
 	}
 	yytext[n] = '\0';
+	yyleng = n;
 	return YYERROR_SUCCESS;
 }
 
@@ -239,11 +295,11 @@ YYINPUT_V int input(void) {
 
 static int yyinput(void) {
 	if (yyleng+1 >= YYTEXT_SIZE) {
-		return YYERROR_BUFF_FULL;
+		return -YYERROR_BUFF_FULL;
 	}
 	yytext[yyleng++] = input();
 	yytext[yyleng] = '\0';
-	return YYERROR_SUCCESS;
+	return (int) (unsigned char) yytext[yyleng-1];
 }
 
 YYUNPUT_V int unput(int c) {
@@ -252,7 +308,7 @@ YYUNPUT_V int unput(int c) {
 	}
 	--yybuf_start;
 	++yybuf_len;
-	yyfix_start;
+	yyfix_start();
 	yybuf[yybuf_start] = c;
 	return YYERROR_SUCCESS;
 }
@@ -267,10 +323,14 @@ YYRESET_V int yyreset(void) {
 }
 
 YYERROR_V char *yyerror(int code) {
+	if (code > INT_MIN && code < 0) {
+		code = -code;
+	}
 	switch (code) {
 	case YYERROR_SUCCESS: return "Success";
 	case YYERROR_BUFF_FULL: return "Input buffer is full";
 	case YYERROR_INV_ARG: return "Invalid input";
+	case YYERROR_NO_MATCH: return "No matching rule";
 	default: return "Unknown error code";
 	}
 }
@@ -336,4 +396,37 @@ static void yyfix_start(void) {
 >			++s;
 >		}
 >	}
+>}
+>
+>/* state is variable name
+> * accept is a label to goto if we end up at an accept state
+> * the transition character is in `ch`
+> */
+>static void write_transition(struct dfa *dfa, char *ch,
+>		char *state, char *accept, FILE *output) {
+>	long i, j, dst;
+>	fprintf(output, "switch (%s) {\n", state);
+>	for (i = 0; i < dfa->num_nodes; ++i) {
+>		fprintf(output, "case %ld:\n", i);
+>		fprintf(output, "switch (%s) {\n", ch);
+>		for (j = 0; j < dfa->num_items; ++j) {
+>			dst = dfa->nodes[i].links[j];
+>			if (dst == -1) {
+>				continue;
+>			}
+>			fprintf(output, "case %ld:\n", j);
+>			fprintf(output, "%s = %ld;\n", state, dst);
+>			if (dfa->nodes[dst].r) {
+>				fprintf(output, "goto %s;\n", accept);
+>			} else {
+>				fputs("break;\n", output);
+>			}
+>		}
+>		fputs("default:\n", output);
+>		fprintf(output, "%s = -1;\n", state);
+>		fputs("break;\n", output);
+>		fputs("}\n", output);
+>		fputs("break;\n", output);
+>	}
+>	fputs("}\n", output);
 >}

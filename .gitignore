@@ -6,3 +6,4 @@
 *.swp
 /test.l
 /lex.yy.c
+/a.out

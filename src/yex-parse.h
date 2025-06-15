@@ -42,8 +42,7 @@ struct yex_parse_state {
 	long bc;
 
 	/* global state */
-	size_t i, j, k;
-	long t;
+	size_t i, j;
 	int ret;
 	int eof;
 	char line[512];
