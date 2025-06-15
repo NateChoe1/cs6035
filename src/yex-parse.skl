@@ -342,7 +342,10 @@ YYINPUT_V int input(void) {
 	}
 
 	if (ret == EOF) {
-		return 0;
+		if (yywrap()) {
+			return 0;
+		}
+		return input();
 	}
 	return ret;
 }
