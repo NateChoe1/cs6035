@@ -178,7 +178,12 @@ YYLEX_V int yylex(void) {
 	for (;;) {
 		ch = yyinput();
 		if (ch < 0) {
-			return ch;
+			return 0;
+		}
+
+		if (ch == 0) {
+			--yyleng;
+			break;
 		}
 
 		/* 1 if every regex is in the shadow realm and can't be matched
@@ -211,7 +216,7 @@ YYCAT(accept, YYIDX):
 			for (;;) {
 				tch = yyinput();
 				if (tch < 0) {
-					return ch;
+					return 0;
 				}
 >		write_transition(state->rules[state->i]->trail_dfa,
 >				"tch", "state_t", state->line, output);
@@ -238,13 +243,17 @@ YYCAT(pc, YYIDX):
 		}
 	}
 	if (mlen <= 0 || mid < 0) {
-		return -YYERROR_NO_MATCH;
+		if (yyleng == 0) {
+			return 0;
+		}
+		fputs(yytext, stdout);
+		return yylex();
 	}
 	YYREWIND(mlen);
 
 	yyanchor = yytext[yyleng-1] == '\n';
 
-	return mid;
+	return mid+1;
 #undef YYREWIND
 }
 
@@ -282,6 +291,7 @@ YYINPUT_V int input(void) {
 	if (yybuf_len > 0) {
 		ret = yybuf[yybuf_start];
 		++yybuf_start;
+		--yybuf_len;
 		yyfix_start();
 	} else {
 		ret = fgetc(yyin);
