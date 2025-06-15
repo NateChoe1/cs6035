@@ -42,6 +42,7 @@ fputs("
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 
 /* visibility macros, may be overwritten by the definitions section */
@@ -150,12 +151,14 @@ static int yyappend = 0;
 /* boolean indicating that '^' anchors should be matched */
 static int yyanchor = 1;
 
+>fprintf(output, "static char yyreject[%ld];\n", (long) state->rules_count);
+
 #define BEGIN yystate =
 #define ECHO fputs(yytext, stdout)
 #define YYCAT1(a, b) a ## b
 #define YYCAT(a, b) YYCAT1(a, b)
 
-YYLEX_V int yylex(void) {
+static int yylex1(void) {
 	int r, ch, mlen, mid, tch, tlen, bf;
 
 	/* state for trailing context */
@@ -195,21 +198,26 @@ YYLEX_V int yylex(void) {
 >	write_states(state, state->i, output);
 >	if (state->rules[state->i]->anchored) {
 			if (!yyanchor) {
+				YYCAT(state_, YYIDX) = -1;
 				break;
 			}
 >	}
+			if (yyreject[YYIDX]) {
+				YYCAT(state_, YYIDX) = -1;
+				break;
+			}
 >	sprintf(state->line, "state_%ld", state->i);
->	sprintf(state->line + sizeof(state->line)/2, "accept%ld", state->i);
+>	sprintf(state->line + sizeof(state->line)/2, "yyaccept%ld", state->i);
 >	write_transition(state->rules[state->i]->re_dfa,
 >		"ch", state->line, state->line + sizeof(state->line)/2, output);
-			goto YYCAT(pc, YYIDX);
-YYCAT(accept, YYIDX):
+			goto YYCAT(yypc, YYIDX);
+YYCAT(yyaccept, YYIDX):
 			/* reject short matches */
 			if (yyleng <= mlen) {
-				goto YYCAT(pc, YYIDX);
+				goto YYCAT(yypc, YYIDX);
 			}
 >	if (state->rules[state->i]->trail_dfa != NULL) {
->		sprintf(state->line, "accept_t%ld", state->i);
+>		sprintf(state->line, "yyaccept_t%ld", state->i);
 			/* match trailing context */
 			state_t = 0;
 			tlen = yyleng;
@@ -225,13 +233,13 @@ YYCAT(accept, YYIDX):
 				}
 			}
 			YYREWIND(tlen);
-			goto YYCAT(pc, YYIDX);
-YYCAT(accept_t, YYIDX):
+			goto YYCAT(yypc, YYIDX);
+YYCAT(yyaccept_t, YYIDX):
 			YYREWIND(tlen);
 >	}
 			mid = YYIDX;
 			mlen = yyleng;
-YYCAT(pc, YYIDX):
+YYCAT(yypc, YYIDX):
 			if (YYCAT(state_, YYIDX) != -1) {
 				bf = 0;
 			}
@@ -247,7 +255,7 @@ YYCAT(pc, YYIDX):
 			return 0;
 		}
 		fputs(yytext, stdout);
-		return yylex();
+		return yylex1();
 	}
 	YYREWIND(mlen);
 
@@ -258,13 +266,18 @@ YYCAT(pc, YYIDX):
 >state->j = 0;
 >for (state->i = 0; state->i < state->rules_count; ++state->i) {
 >	fprintf(output, "case %ld:\n", (long) state->i);
+#define REJECT do { \
+>	fprintf(output, "yyreject[%ld] = 1; \\\n", (long) state->i);
+	goto yyreject; \
+} while (0)
 >	if (state->rules[state->i]->action != NULL) {
 >		fputs(state->rules[state->i]->action, output);
->		fputs("break;\n", output);
+>		fputs("goto yyskip;\n", output);
 >		state->j = 0;
 >	} else {
 >		state->j = 1;
 >	}
+#undef REJECT
 >}
 >if (state->j) {
 >	fputs("Final rule is the skip action\n", stderr);
@@ -276,7 +289,10 @@ YYCAT(pc, YYIDX):
 		return 0;
 	}
 
-	return yylex();
+yyreject:
+	YYREWIND(0);
+yyskip:
+	return yylex1();
 #undef YYREWIND
 }
 
@@ -284,6 +300,11 @@ YYCAT(pc, YYIDX):
 #undef ECHO
 #undef YYCAT1
 #undef YYCAT
+
+YYLEX_V int yylex(void) {
+	memset(yyreject, 0, sizeof(yyreject));
+	return yylex1();
+}
 
 YYMORE_V int yymore(void) {
 	yyappend = 1;
