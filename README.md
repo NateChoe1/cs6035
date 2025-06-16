@@ -155,6 +155,7 @@ is undefined behavior.
 > ```lex
 > %x COMMENT
 > 
+>  #include <stdio.h>
 >  static int level = 0;
 >  static int yywrap(void);
 > 
