@@ -196,7 +196,7 @@ generator which is hopefully compatible with POSIX yacc.
 ## Naming
 
 Stone and Moyo are named after terms from the game of
-[go](https://en.wikipedia.org/wiki/Go_(game%29). Stone, the lexer, is named
+[go](https://en.wikipedia.org/wiki/Go_(game)). Stone, the lexer, is named
 after the pieces on the board because they form the building blocks of a game,
 just like how tokens form the building blocks of a language. Moyo, the parser
 generator, is named after the large frameworks that you sometimes build in go.
