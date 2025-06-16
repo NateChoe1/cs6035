@@ -379,7 +379,11 @@ YYRESET_V int yyreset(void) {
 	yystate = INITIAL;
 	yyappend = 0;
 	yyanchor = 1;
+#if YYRESET1_DEFINED
+	return yyreset1();
+#else
 	return YYERROR_SUCCESS;
+#endif
 }
 
 YYERROR_V char *yyerror(int code) {

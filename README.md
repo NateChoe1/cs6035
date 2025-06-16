@@ -34,7 +34,13 @@ Stone is a lexer. It tries to be compatible with POSIX Lex.
 
 ### Implementation-specific behavior:
 
+> **AUTHOR'S NOTE**: I'll be adding in some extra commentary in block quotes to
+> try and justify all of my decisions.
+
 The default type of `yytext` is `char[]`
+
+> Whether `yytext` is `char[]` or `char *` is implementation defined behavior,
+> so I'm required to define it here.
 
 The symbols in `lex.yy.c` are defined as follows:
 
@@ -91,24 +97,70 @@ You can change the names of the `yylex`, `yymore`, `yyless`, `input`, and
 /* some user subroutines */
 ```
 
-The `%p`, `%n`, `%a`, and `%k` directives are ignored.
+
+> A large part of the philosophy of Stone is that POSIX Lex sucks, but a lot of
+> its problems can be fixed with the C preprocessor. For example, if the
+> `yymore` function is defined as globally visibile, it could create a namespace
+> collision in multi-file C programs. On the other hand, if `yymore` is declared
+> as `static`, you might not be able to access it externally when you want to.
+>
+> On an extreme level, if you want to have two different tokenizers to parse two
+> different types of data in the same program, you're basically guaranteed to
+> have a namespace collision at link time.
+>
+> The obvious solution is to allow the programmer to choose how they want these
+> functions defined with the C preprocessor.
+
+The `%p`, `%n`, `%a`, and `%k` directives are ignored. The `%o` directive is
+used to set `YYTEXT_SIZE`.
+
+> I really hate these directives, they ought to be implementation defined
+> extensions.
 
 The extension function `yyreset()` will reset the lexer for further use with a
 different file by throwing away any internal buffers and resetting all state.
-The file pointer that was previously stored in `yyin` SHOULD NOT be reused. This
-function returns 0 on success and an error code greater than zero on failure.
+The file pointer that was previously stored in `yyin` SHOULD NOT be reused.
+`yyreset` contains this snippet:
+
+```c
+#if YYRESET1_DEFINED
+	return yyreset1();
+#else
+	return 0;
+#endif
+```
+
+> This feels like such an obvious feature that POSIX Lex just, like, doesn't
+> have. It's intended that the programmer defines `yyreset1` and uses it to hook
+> on lexer resets.
 
 The extension function `yyerror()` will take as input an error code returned by
 some other function and return a string providing an explanation of what error
 occurred.
 
+> For example, `yyerror(1)` returns the string "Input buffer is full". I didn't
+> realize that this has a conflict with Yacc's `yyerror` function when I wrote
+> it. I might change its name later.
+
 Defining a visibility macro as anything other than `static` or the empty string
-is undefined behavior. No `const int yyleng`, for example.
+is undefined behavior.
+
+> No `const int yyleng`, for example.
 
 ## Moyo
 
 Moyo is currently unimplemented, but it will eventually become a parser
 generator which is hopefully compatible with POSIX yacc.
+
+## Naming
+
+Stone and Moyo are named after terms from the game of
+[go](https://en.wikipedia.org/wiki/Go_(game%29). Stone, the lexer, is named
+after the pieces on the board because they form the building blocks of a game,
+just like how tokens form the building blocks of a language. Moyo, the parser
+generator, is named after the large frameworks that you sometimes build in go.
+The pun is that parser generators work with shift-reduce tables, and in go when
+your opponent builds a moyo you're supposed to either reduce or invade it.
 
 ## Standard references
 
