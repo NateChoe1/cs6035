@@ -28,13 +28,18 @@ static int parse_rules(struct stone_parse_state *state, int c);
 static int parse_rules_closed(struct stone_parse_state *state, int c);
 static struct stone_parse_rule *read_ere(struct arena *arena,
 		char *ere, struct strmap *substs);
-static int read_ere_help(struct stone_parse_rule *rule, struct sb *sb,
+static int read_ere_help(struct arena *arena,
+		struct stone_parse_rule *rule, struct sb *sb,
 		char *ere, struct strmap *substs);
-static long read_subst(struct sb *sb, char *ere, struct strmap *substs);
+static long read_subst(struct arena *arena,
+		struct sb *sb, char *ere, struct strmap *substs);
 static int read_escape(char *s, char *ret);
 static int read_octal(char *s, char *ret);
 static int read_hex(char *s, char *ret);
 static int is_skip(char *s);
+
+/* helper functions */
+static char *strdup(struct arena *arena, char *s);
 
 /* stone_parse_char is defined here */
 #include "stone-parse.skl.comp"
@@ -411,7 +416,7 @@ static struct stone_parse_rule *read_ere(struct arena *arena,
 	sb = sb_new(arena);
 	ret = arena_malloc(arena, sizeof(*ret));
 
-	if (read_ere_help(ret, sb, ere, substs)) {
+	if (read_ere_help(arena, ret, sb, ere, substs)) {
 		return NULL;
 	}
 
@@ -425,7 +430,8 @@ static struct stone_parse_rule *read_ere(struct arena *arena,
  *
  * returns 1 on error, 0 on success
  * */
-static int read_ere_help(struct stone_parse_rule *rule, struct sb *sb,
+static int read_ere_help(struct arena *arena,
+		struct stone_parse_rule *rule, struct sb *sb,
 		char *ere, struct strmap *substs) {
 	long i, d;
 	int in_q;
@@ -453,6 +459,7 @@ static int read_ere_help(struct stone_parse_rule *rule, struct sb *sb,
 			}
 		}
 		++ere;
+		rule->states = strdup(arena, rule->states);
 	}
 
 	if (ere[0] == '^') {
@@ -477,7 +484,7 @@ static int read_ere_help(struct stone_parse_rule *rule, struct sb *sb,
 		}
 
 		if (ere[i] == '{') {
-			d = read_subst(sb, ere+i, substs);
+			d = read_subst(arena, sb, ere+i, substs);
 			switch (d) {
 			case 0:
 				goto not_subst;
@@ -538,7 +545,8 @@ not_subst:
  * for example, if ere == "{digit}", and "digit" was a substitution defined
  * earlier, this function will append ([0-9]) to sb, or whatever the actual
  * regex was */
-static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
+static long read_subst(struct arena *arena,
+		struct sb *sb, char *ere, struct strmap *substs) {
 	long d;
 	char *k, *v;
 
@@ -560,7 +568,7 @@ static long read_subst(struct sb *sb, char *ere, struct strmap *substs) {
 	}
 
 	sb_append(sb, '(');
-	if (read_ere_help(NULL, sb, v, substs)) {
+	if (read_ere_help(arena, NULL, sb, v, substs)) {
 		fprintf(stderr, "Error while expanding substition `%s`\n", k);
 		d = -1;
 		goto end;
@@ -681,3 +689,12 @@ static int is_skip(char *s) {
 }
 
 /* end of rules section parse definitions */
+
+static char *strdup(struct arena *arena, char *s) {
+	size_t l;
+	char *r;
+	l = strlen(s);
+	r = arena_malloc(arena, l+1);
+	memcpy(r, s, l+1);
+	return r;
+}
