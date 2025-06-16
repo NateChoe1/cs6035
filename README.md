@@ -147,6 +147,47 @@ is undefined behavior.
 
 > No `const int yyleng`, for example.
 
+`BEGIN newstate;`, `ECHO;`, and `REJECT;`, are valid C statements.
+
+> This allows you to do fancy stuff like this (nested multiline comments with
+> some stored state):
+>
+> ```lex
+> %x COMMENT
+> 
+>  static int level = 0;
+>  static int yywrap(void);
+> 
+> %%
+> 
+> \/\* level = 1; BEGIN COMMENT;
+> 
+> <COMMENT>\/\* ++level;
+> 
+> <COMMENT>\*\/ if (--level == 0) BEGIN INITIAL;
+> 
+> \*\/ return 0;
+> 
+> . ECHO;
+> 
+> <COMMENT>. ;
+> 
+> %%
+> 
+> static int yywrap(void) {
+> 	return 1;
+> }
+> 
+> int main(void) {
+> 	yyin = stdin;
+> 	for (;;) {
+> 		if (!yylex()) {
+> 			return 0;
+> 		}
+> 	}
+> }
+> ```
+
 ## Moyo
 
 Moyo is currently unimplemented, but it will eventually become a parser
