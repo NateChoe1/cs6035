@@ -5,13 +5,13 @@
 
 #include "getopt.h"
 #include "coroutine.h"
-#include "yex-parse.h"
+#include "stone-parse.h"
 
 static int write_output(char **inputs, FILE *output, int verbose);
-static int parse_file(struct yex_parse_state *state,
+static int parse_file(struct stone_parse_state *state,
 		FILE *input, FILE *output);
 
-int yex_main(int argc, char **argv) {
+int stone_main(int argc, char **argv) {
 	FILE *output;
 	int c, verbose, to_stdout;
 
@@ -63,11 +63,11 @@ bad_arg:
 
 static int write_output(char **inputs, FILE *output, int verbose) {
 	int i, ret;
-	struct yex_parse_state state;
+	struct stone_parse_state state;
 	FILE *input;
 
 	/* the first input is to initialize the state */
-	yex_parse_char(&state, COROUTINE_RESET, output);
+	stone_parse_char(&state, COROUTINE_RESET, output);
 
 	for (i = 0; inputs[i] != NULL; ++i) {
 		input = fopen(inputs[i], "r");
@@ -84,7 +84,7 @@ static int write_output(char **inputs, FILE *output, int verbose) {
 		}
 	}
 
-	if (yex_parse_char(&state, COROUTINE_EOF, output) != -1) {
+	if (stone_parse_char(&state, COROUTINE_EOF, output) != -1) {
 		fputs("An error occured during parsing.\n", stderr);
 		return 1;
 	}
@@ -93,14 +93,14 @@ static int write_output(char **inputs, FILE *output, int verbose) {
 		goto ret;
 	}
 
-	fputs("Yex summary:\n", stderr);
+	fputs("Tokenizer summary:\n", stderr);
 	fprintf(stderr, "  Total rules: %ld\n", (long) state.rules_count);
 
 ret:
 	return 0;
 }
 
-static int parse_file(struct yex_parse_state *state,
+static int parse_file(struct stone_parse_state *state,
 		FILE *input, FILE *output) {
 	int c;
 
@@ -110,7 +110,7 @@ static int parse_file(struct yex_parse_state *state,
 			return 0;
 		}
 
-		if (yex_parse_char(state, c, output) != 0) {
+		if (stone_parse_char(state, c, output) != 0) {
 			return 1;
 		}
 	}

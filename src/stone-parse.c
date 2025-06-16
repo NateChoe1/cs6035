@@ -7,27 +7,28 @@
 #include "arena.h"
 #include "regex.h"
 #include "strmap.h"
-#include "yex-parse.h"
 #include "coroutine.h"
+#include "stone-parse.h"
 
 /* IMPL-DEF: i'm assuming that for all digits, 'x' - '0' = x, and for all hex
  * digits 'x' - 'a' = x - 10
  * */
 
 /* definition section parse functions */
-static int parse_definitions(struct yex_parse_state *state,
+static int parse_definitions(struct stone_parse_state *state,
 		int c, FILE *output);
-static int parse_definition_line(struct yex_parse_state *state, FILE *output);
-static int parse_substitution(struct yex_parse_state *state);
+static int parse_definition_line(struct stone_parse_state *state,
+		FILE *output);
+static int parse_substitution(struct stone_parse_state *state);
 static int read_states(struct arena *arena,
 		char *line, char ***states, size_t *len, size_t *alloc);
 
 /* rules section parse functions */
-static int parse_rules(struct yex_parse_state *state, int c);
-static int parse_rules_closed(struct yex_parse_state *state, int c);
-static struct yex_parse_rule *read_ere(struct arena *arena,
+static int parse_rules(struct stone_parse_state *state, int c);
+static int parse_rules_closed(struct stone_parse_state *state, int c);
+static struct stone_parse_rule *read_ere(struct arena *arena,
 		char *ere, struct strmap *substs);
-static int read_ere_help(struct yex_parse_rule *rule, struct sb *sb,
+static int read_ere_help(struct stone_parse_rule *rule, struct sb *sb,
 		char *ere, struct strmap *substs);
 static long read_subst(struct sb *sb, char *ere, struct strmap *substs);
 static int read_escape(char *s, char *ret);
@@ -35,12 +36,12 @@ static int read_octal(char *s, char *ret);
 static int read_hex(char *s, char *ret);
 static int is_skip(char *s);
 
-/* yex_parse_char is defined here */
-#include "yex-parse.skl.comp"
+/* stone_parse_char is defined here */
+#include "stone-parse.skl.comp"
 
 /* start of definition section parse definitions */
 
-static int parse_definitions(struct yex_parse_state *state,
+static int parse_definitions(struct stone_parse_state *state,
 		int c, FILE *output) {
 	COROUTINE_START(state->parse_definitions_progress);
 
@@ -79,7 +80,8 @@ static int parse_definitions(struct yex_parse_state *state,
 	COROUTINE_END;
 }
 
-static int parse_definition_line(struct yex_parse_state *state, FILE *output) {
+static int parse_definition_line(struct stone_parse_state *state,
+		FILE *output) {
 	if (state->in_def_block) {
 		if (strcmp(state->line, "%}")) {
 			state->in_def_block = 0;
@@ -145,7 +147,7 @@ echo:
 	return -1;
 }
 
-static int parse_substitution(struct yex_parse_state *state) {
+static int parse_substitution(struct stone_parse_state *state) {
 	long i, j;
 	char *name, *subst;
 
@@ -235,7 +237,7 @@ static int read_states(struct arena *arena,
 
 /* start of rules section parse definitions */
 
-static int parse_rules(struct yex_parse_state *state, int c) {
+static int parse_rules(struct stone_parse_state *state, int c) {
 	COROUTINE_START(state->parse_rules_progress);
 
 	state->rules_count = 0;
@@ -305,7 +307,7 @@ end:
 
 /* this function receives eof at the end of the rules section, regardless of
  * whether or not user subroutines follow */
-static int parse_rules_closed(struct yex_parse_state *state, int c) {
+static int parse_rules_closed(struct stone_parse_state *state, int c) {
 	COROUTINE_START(state->parse_rules_closed_progress);
 
 	for (;;) {
@@ -401,10 +403,10 @@ skip_parse:
 	COROUTINE_END;
 }
 
-static struct yex_parse_rule *read_ere(struct arena *arena,
+static struct stone_parse_rule *read_ere(struct arena *arena,
 		char *ere, struct strmap *substs) {
 	struct sb *sb;
-	struct yex_parse_rule *ret;
+	struct stone_parse_rule *ret;
 
 	sb = sb_new(arena);
 	ret = arena_malloc(arena, sizeof(*ret));
@@ -423,7 +425,7 @@ static struct yex_parse_rule *read_ere(struct arena *arena,
  *
  * returns 1 on error, 0 on success
  * */
-static int read_ere_help(struct yex_parse_rule *rule, struct sb *sb,
+static int read_ere_help(struct stone_parse_rule *rule, struct sb *sb,
 		char *ere, struct strmap *substs) {
 	long i, d;
 	int in_q;

@@ -1,10 +1,10 @@
 fputs("
 \n", output);
->static void write_states(struct yex_parse_state *state, long rule,
+>static void write_states(struct stone_parse_state *state, long rule,
 >		FILE *output);
 >static void write_transition(struct dfa *dfa, char *ch,
 >		char *state, char *accept, FILE *output);
->int yex_parse_char(struct yex_parse_state *state, int c, FILE *output) {
+>int stone_parse_char(struct stone_parse_state *state, int c, FILE *output) {
 >COROUTINE_START(state->parse_char_progress);
 >state->arena = arena_new();
 
@@ -428,9 +428,9 @@ static void yyfix_start(void) {
 >COROUTINE_END;
 >}
 >
->static void write_states(struct yex_parse_state *state, long rule,
+>static void write_states(struct stone_parse_state *state, long rule,
 >		FILE *output) {
->	struct yex_parse_rule *r;
+>	struct stone_parse_rule *r;
 >	size_t i;
 >	char *s;
 >

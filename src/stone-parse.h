@@ -1,13 +1,13 @@
-#ifndef YEX_PARSE_H
-#define YEX_PARSE_H
+#ifndef STONE_PARSE_H
+#define STONE_PARSE_H
 
 #include <stdio.h>
 
 #include "sb.h"
-#include "arena.h"
 #include "dfa.h"
+#include "arena.h"
 
-struct yex_parse_rule {
+struct stone_parse_rule {
 	char *re;       /* the regex itself */
 	char *trail;    /* the trailing context. for example, if the regex ends
 			   with '$', then this is "\n". if there is no trailing
@@ -22,7 +22,7 @@ struct yex_parse_rule {
 	char *states;
 };
 
-struct yex_parse_state {
+struct stone_parse_state {
 	/* progress state */
 	int parse_char_progress;
 	int parse_definitions_progress;
@@ -70,12 +70,12 @@ struct yex_parse_state {
 	size_t ex_states_alloc;
 
 	/* rules */
-	struct yex_parse_rule **rules;
+	struct stone_parse_rule **rules;
 	size_t rules_count;
 	size_t rules_alloc;
 };
 
 /* this is a coroutine, see coroutine.h */
-int yex_parse_char(struct yex_parse_state *state, int c, FILE *output);
+int stone_parse_char(struct stone_parse_state *state, int c, FILE *output);
 
 #endif
