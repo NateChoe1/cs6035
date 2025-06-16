@@ -160,13 +160,13 @@ is undefined behavior.
 > 
 > %%
 > 
-> \/\* level = 1; BEGIN COMMENT;
+> \/\\* level = 1; BEGIN COMMENT;
 > 
-> <COMMENT>\/\* ++level;
+> <COMMENT>\/\\* ++level;
 > 
-> <COMMENT>\*\/ if (--level == 0) BEGIN INITIAL;
+> <COMMENT>\\*\/ if (--level == 0) BEGIN INITIAL;
 > 
-> \*\/ return 0;
+> \\*\/ return 0;
 > 
 > . ECHO;
 > 
