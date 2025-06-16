@@ -188,6 +188,10 @@ is undefined behavior.
 > 	}
 > }
 > ```
+>
+> Notably, as far as I can tell this is technically undefined behavior in POSIX
+> Lex, since these directives are defined as special _actions_ (emphasis mine),
+> and not as special statements within actions.
 
 ## Moyo
 
